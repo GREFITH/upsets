@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic-settings
+sqlalchemy
+asyncpg
+httpx
+python-dateutil
+greenlet
+certifi

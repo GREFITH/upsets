@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(python -c \"from app.api.v1.endpoints import clients; print\\('✓ clients endpoint imported successfully'\\)\")",
+      "Bash(python -m py_compile app/models/harvest.py app/schemas/operations.py)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
