@@ -64,9 +64,9 @@ function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMem
       const months_list = eachMonthOfInterval({ start, end: addMonths(end, 2) });
       months_list.forEach((m) => months.add(format(m, "yyyy-MM")));
     });
-    // Add current month and next 2 months
+    // Add historical months (12 months back) + current + future months (6 months forward)
     const now = today;
-    for (let i = 0; i < 3; i++) {
+    for (let i = -12; i < 6; i++) {
       months.add(format(addMonths(now, i), "yyyy-MM"));
     }
     return Array.from(months).sort();
