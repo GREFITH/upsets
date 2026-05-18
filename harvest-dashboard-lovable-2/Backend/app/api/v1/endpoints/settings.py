@@ -157,60 +157,110 @@ def _is_internal_assignment(client_name: str | None, project_name: str | None) -
 @router.get("/freelancer-assignments")
 async def get_freelancer_assignments(db: AsyncSession = Depends(get_db)) -> list[dict]:
     """Fetch all billable contractor-to-project assignments with costs from existing tables."""
+    import logging
     from sqlalchemy import and_
 
-    # Join user_assignments -> users -> projects -> clients
-    assignments = (
-        await db.execute(
-            select(HarvestUserAssignment, HarvestUser, HarvestProject, HarvestClient).join(
-                HarvestUser, HarvestUserAssignment.user_id == HarvestUser.harvest_id
-            ).join(
-                HarvestProject, HarvestUserAssignment.project_id == HarvestProject.harvest_id
-            ).join(
-                HarvestClient, HarvestProject.client_id == HarvestClient.harvest_id, isouter=True
-            ).where(
-                and_(
-                    HarvestUser.is_contractor == True,
-                    HarvestUserAssignment.is_active == True
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Try to join with is_contractor filter first
+        try:
+            assignments = (
+                await db.execute(
+                    select(HarvestUserAssignment, HarvestUser, HarvestProject, HarvestClient).join(
+                        HarvestUser, HarvestUserAssignment.user_id == HarvestUser.harvest_id
+                    ).join(
+                        HarvestProject, HarvestUserAssignment.project_id == HarvestProject.harvest_id
+                    ).join(
+                        HarvestClient, HarvestProject.client_id == HarvestClient.harvest_id, isouter=True
+                    ).where(
+                        and_(
+                            HarvestUser.is_contractor == True,
+                            HarvestUserAssignment.is_active == True
+                        )
+                    ).order_by(HarvestUserAssignment.created_at.desc())
                 )
-            ).order_by(HarvestUserAssignment.created_at.desc())
+            ).all()
+        except Exception as column_error:
+            # Fallback: if is_contractor column doesn't exist, query without that filter
+            logger.warning(f"is_contractor filter failed, using fallback query: {str(column_error)}")
+            assignments = (
+                await db.execute(
+                    select(HarvestUserAssignment, HarvestUser, HarvestProject, HarvestClient).join(
+                        HarvestUser, HarvestUserAssignment.user_id == HarvestUser.harvest_id
+                    ).join(
+                        HarvestProject, HarvestUserAssignment.project_id == HarvestProject.harvest_id
+                    ).join(
+                        HarvestClient, HarvestProject.client_id == HarvestClient.harvest_id, isouter=True
+                    ).where(
+                        HarvestUserAssignment.is_active == True
+                    ).order_by(HarvestUserAssignment.created_at.desc())
+                )
+            ).all()
+
+        result = []
+        for assignment, user, project, client in assignments:
+            # Check if this is actually a contractor (filter even if column didn't exist in query)
+            try:
+                is_contractor = getattr(user, "is_contractor", False)
+                if not is_contractor:
+                    continue
+            except Exception:
+                # If we can't determine contractor status, assume True (we got it from user_assignments)
+                pass
+
+            # Filter out internal/non-billable assignments
+            if _is_internal_assignment(client.name if client else None, project.name):
+                continue
+
+            # Filter out E2M Team internal account
+            if user.first_name == "E2M":
+                continue
+
+            # Cost per month: hourly_rate or cost_rate * 160 hours/month (or from assignment budget)
+            monthly_cost = 0.0
+            try:
+                if assignment.hourly_rate:
+                    monthly_cost = float(assignment.hourly_rate) * 160
+                elif user.cost_rate:
+                    monthly_cost = float(user.cost_rate) * 160
+                elif assignment.budget:
+                    monthly_cost = float(assignment.budget)
+            except (TypeError, ValueError):
+                monthly_cost = 0.0
+
+            # Safely extract avatar_url with fallback
+            avatar_url = None
+            try:
+                avatar_url = getattr(user, "avatar_url", None)
+            except Exception:
+                avatar_url = None
+
+            result.append({
+                "id": str(assignment.id),
+                "userId": user.harvest_id,
+                "projectId": project.harvest_id,
+                "projectCode": project.code,
+                "projectName": project.name,
+                "freelancerName": f"{user.first_name} {user.last_name}",
+                "costRate": float(user.cost_rate) if user.cost_rate else None,
+                "billRate": float(assignment.hourly_rate) if assignment.hourly_rate else None,
+                "estimatedMonthlyCost": monthly_cost,
+                "clientName": client.name if client else None,
+                "avatarUrl": avatar_url,
+                "isProjectManager": assignment.is_project_manager,
+                "startDate": project.starts_on.isoformat() if project.starts_on else None,
+                "endDate": project.ends_on.isoformat() if project.ends_on else None,
+            })
+
+        return result
+
+    except Exception as e:
+        logger.error(
+            f"Error fetching freelancer assignments: {str(e)}",
+            exc_info=True
         )
-    ).all()
-
-    result = []
-    for assignment, user, project, client in assignments:
-        # Filter out internal/non-billable assignments
-        if _is_internal_assignment(client.name if client else None, project.name):
-            continue
-
-        # Filter out E2M Team internal account
-        if user.first_name == "E2M":
-            continue
-
-        # Cost per month: hourly_rate or cost_rate * 160 hours/month (or from assignment budget)
-        monthly_cost = 0
-        if assignment.hourly_rate:
-            monthly_cost = float(assignment.hourly_rate) * 160
-        elif user.cost_rate:
-            monthly_cost = float(user.cost_rate) * 160
-        elif assignment.budget:
-            monthly_cost = float(assignment.budget)
-
-        result.append({
-            "id": str(assignment.id),
-            "userId": user.harvest_id,
-            "projectId": project.harvest_id,
-            "projectCode": project.code,
-            "projectName": project.name,
-            "freelancerName": f"{user.first_name} {user.last_name}",
-            "costRate": float(user.cost_rate) if user.cost_rate else None,
-            "billRate": float(assignment.hourly_rate) if assignment.hourly_rate else None,
-            "estimatedMonthlyCost": monthly_cost,
-            "clientName": client.name if client else None,
-            "avatarUrl": user.avatar_url,
-            "isProjectManager": assignment.is_project_manager,
-            "startDate": project.starts_on.isoformat() if project.starts_on else None,
-            "endDate": project.ends_on.isoformat() if project.ends_on else None,
-        })
-
-    return result
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to load freelancer assignments: {str(e)}"
+        )
