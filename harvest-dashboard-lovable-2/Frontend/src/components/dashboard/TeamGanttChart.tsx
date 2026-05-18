@@ -64,11 +64,13 @@ function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMem
       const months_list = eachMonthOfInterval({ start, end: addMonths(end, 2) });
       months_list.forEach((m) => months.add(format(m, "yyyy-MM")));
     });
-    // Add historical months (12 months back) + current + future months (6 months forward)
+    // Add all historical months from 2024 + current + future months
     const now = today;
-    for (let i = -12; i < 6; i++) {
-      months.add(format(addMonths(now, i), "yyyy-MM"));
-    }
+    // Go back to January 2024 (about 24 months back from mid-2026, or more if earlier)
+    const twoYearsAgo = addMonths(now, -24);
+    const sixMonthsAhead = addMonths(now, 6);
+    const allMonths = eachMonthOfInterval({ start: twoYearsAgo, end: sixMonthsAhead });
+    allMonths.forEach((m) => months.add(format(m, "yyyy-MM")));
     return Array.from(months).sort();
   }, [today]);
 
