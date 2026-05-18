@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, DollarSign, Users, TrendingDown, Save } from "lucide-react";
 import { getAssignmentMonthlyCosts } from "@/data/freelancerData";
-import type { FreelancerAssignment, NewFreelancerAssignmentRequest } from "@/types/freelancer";
+import type { BillingType, FreelancerAssignment, NewFreelancerAssignmentRequest } from "@/types/freelancer";
 import { NewFreelancerDialog } from "@/components/dashboard/NewFreelancerDialog";
 import { useProjects, useTeamMembers } from "@/hooks/usePageData";
 import { apiClient } from "@/lib/api/client";
@@ -80,21 +80,25 @@ export default function FreelancerAssignments() {
   // Convert API assignments to FreelancerAssignment format on load
   useMemo(() => {
     if (apiAssignments && apiAssignments.length > 0 && assignments.length === 0) {
-      const converted = apiAssignments.map((a) => ({
-        id: a.id,
-        projectCode: a.projectCode,
-        freelancerName: a.freelancerName,
-        billingType: a.billRate ? "harvest" : "flat-rate",
-        billRate: a.billRate,
-        flatRateAmount: a.estimatedMonthlyCost,
-        negotiatedHours: undefined,
-        startDate: a.startDate || new Date().toISOString(),
-        endDate: a.endDate || new Date().toISOString(),
-        monthlyOverrides: {},
-        notes: `From Harvest: ${a.clientName} (Cost Rate: $${a.costRate}/hr)`,
-        createdBy: "harvest-sync",
-        createdAt: new Date().toISOString(),
-      }));
+      const converted = apiAssignments.map((a) => {
+        const billingType: BillingType = a.billRate ? "harvest" : "flat-rate";
+        return {
+          id: a.id,
+          projectCode: a.projectCode,
+          projectName: a.projectName,
+          freelancerName: a.freelancerName,
+          billingType,
+          billRate: a.billRate,
+          flatRateAmount: a.estimatedMonthlyCost,
+          negotiatedHours: undefined,
+          startDate: a.startDate || new Date().toISOString(),
+          endDate: a.endDate || new Date().toISOString(),
+          monthlyOverrides: {},
+          notes: `From Harvest: ${a.clientName} (Cost Rate: $${a.costRate}/hr)`,
+          createdBy: "harvest-sync",
+          createdAt: new Date().toISOString(),
+        };
+      });
       setAssignments(converted);
     }
   }, [apiAssignments]);
@@ -270,7 +274,6 @@ export default function FreelancerAssignments() {
                 </TableRow>
               ) : (
                 assignments.map((a) => {
-                  const project = projects.find((p) => p.code === a.projectCode);
                   const monthlyCost =
                     a.billingType === "harvest" ? (a.billRate || 0) * 160 : a.flatRateAmount || 0;
 
@@ -279,7 +282,7 @@ export default function FreelancerAssignments() {
                       <TableCell>
                         <div>
                           <span className="font-mono text-sm font-medium">{a.projectCode}</span>
-                          {project && <p className="text-xs text-muted-foreground">{project.clientName}</p>}
+                          {a.projectName && <p className="text-xs text-muted-foreground">{a.projectName}</p>}
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">{a.freelancerName}</TableCell>

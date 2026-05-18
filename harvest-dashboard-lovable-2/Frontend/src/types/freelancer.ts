@@ -3,6 +3,7 @@ export type BillingType = "harvest" | "flat-rate";
 export interface FreelancerAssignment {
   id: string;
   projectCode: string;
+  projectName?: string;
   freelancerName: string;
   billingType: BillingType;
   /** For harvest: hourly bill rate */
