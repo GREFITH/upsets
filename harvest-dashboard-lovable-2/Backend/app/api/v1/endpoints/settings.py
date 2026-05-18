@@ -6,8 +6,11 @@ from app.db.session import get_db
 from app.models.harvest import (
     DEPT_LABELS,
     SYNC_STATE_KEY,
+    HarvestClient,
     HarvestProject,
     HarvestSyncState,
+    HarvestUser,
+    HarvestUserAssignment,
     ProjectDepartmentMap,
     ProjectFinancialOverride,
 )
@@ -116,3 +119,57 @@ async def update_financial_overrides(
             row.notes = entry.get("notes")
     await db.commit()
     return {"ok": True}
+
+
+@router.get("/freelancer-assignments")
+async def get_freelancer_assignments(db: AsyncSession = Depends(get_db)) -> list[dict]:
+    """Fetch all contractor-to-project assignments with costs from existing tables."""
+    from sqlalchemy import and_
+
+    # Join user_assignments -> users -> projects -> clients
+    assignments = (
+        await db.execute(
+            select(HarvestUserAssignment, HarvestUser, HarvestProject, HarvestClient).join(
+                HarvestUser, HarvestUserAssignment.user_id == HarvestUser.harvest_id
+            ).join(
+                HarvestProject, HarvestUserAssignment.project_id == HarvestProject.harvest_id
+            ).join(
+                HarvestClient, HarvestProject.client_id == HarvestClient.harvest_id, isouter=True
+            ).where(
+                and_(
+                    HarvestUser.is_contractor == True,
+                    HarvestUserAssignment.is_active == True
+                )
+            ).order_by(HarvestUserAssignment.created_at.desc())
+        )
+    ).all()
+
+    result = []
+    for assignment, user, project, client in assignments:
+        # Cost per month: hourly_rate or cost_rate * 160 hours/month (or from assignment budget)
+        monthly_cost = 0
+        if assignment.hourly_rate:
+            monthly_cost = float(assignment.hourly_rate) * 160
+        elif user.cost_rate:
+            monthly_cost = float(user.cost_rate) * 160
+        elif assignment.budget:
+            monthly_cost = float(assignment.budget)
+
+        result.append({
+            "id": str(assignment.id),
+            "userId": user.harvest_id,
+            "projectId": project.harvest_id,
+            "projectCode": project.code,
+            "projectName": project.name,
+            "freelancerName": f"{user.first_name} {user.last_name}",
+            "costRate": float(user.cost_rate) if user.cost_rate else None,
+            "billRate": float(assignment.hourly_rate) if assignment.hourly_rate else None,
+            "estimatedMonthlyCost": monthly_cost,
+            "clientName": client.name if client else None,
+            "avatarUrl": user.avatar_url,
+            "isProjectManager": assignment.is_project_manager,
+            "startDate": project.starts_on.isoformat() if project.starts_on else None,
+            "endDate": project.ends_on.isoformat() if project.ends_on else None,
+        })
+
+    return result

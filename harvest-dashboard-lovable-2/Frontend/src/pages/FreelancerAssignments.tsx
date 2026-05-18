@@ -53,19 +53,51 @@ export default function FreelancerAssignments() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [assignments, setAssignments] = useState<FreelancerAssignment[]>([]);
 
-  // Load existing freelancer cost overrides on mount
-  const { data: harvestSettings } = useQuery({
-    queryKey: ["harvest-settings-overrides"],
-    queryFn: () => apiClient.get("/api/v1/settings/harvest"),
+  // Fetch contractor assignments from API (harvest_user_assignments table)
+  const { data: apiAssignments, isLoading: isLoadingAssignments } = useQuery({
+    queryKey: ["freelancer-assignments"],
+    queryFn: async () => {
+      const rows = await apiClient.get<Array<{
+        id: string;
+        userId: number;
+        projectId: number;
+        projectCode: string;
+        projectName: string;
+        freelancerName: string;
+        costRate?: number;
+        billRate?: number;
+        estimatedMonthlyCost: number;
+        clientName?: string;
+        avatarUrl?: string;
+        startDate?: string;
+        endDate?: string;
+      }>>("/api/v1/freelancer-assignments");
+      return Array.isArray(rows) ? rows : [];
+    },
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Initialize assignments from loaded overrides (if available)
+  // Convert API assignments to FreelancerAssignment format on load
   useMemo(() => {
-    if (harvestSettings?.financialOverrides && assignments.length === 0) {
-      // Could populate assignments from overrides here if we store them
-      // For now, just load the override data
+    if (apiAssignments && apiAssignments.length > 0 && assignments.length === 0) {
+      const converted = apiAssignments.map((a) => ({
+        id: a.id,
+        projectCode: a.projectCode,
+        freelancerName: a.freelancerName,
+        billingType: a.billRate ? "harvest" : "flat-rate",
+        billRate: a.billRate,
+        flatRateAmount: a.estimatedMonthlyCost,
+        negotiatedHours: undefined,
+        startDate: a.startDate || new Date().toISOString(),
+        endDate: a.endDate || new Date().toISOString(),
+        monthlyOverrides: {},
+        notes: `From Harvest: ${a.clientName} (Cost Rate: $${a.costRate}/hr)`,
+        createdBy: "harvest-sync",
+        createdAt: new Date().toISOString(),
+      }));
+      setAssignments(converted);
     }
-  }, [harvestSettings]);
+  }, [apiAssignments]);
 
   const addAssignment = useCallback((req: NewFreelancerAssignmentRequest) => {
     setAssignments((prev) => [...prev, requestToAssignment(req)]);
@@ -193,7 +225,7 @@ export default function FreelancerAssignments() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Assignments</p>
-                <p className="text-2xl font-bold">{assignments.length}</p>
+                <p className="text-2xl font-bold">{apiAssignments?.length ?? 0}</p>
               </div>
             </div>
           </CardContent>
