@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Save, Search } from "lucide-react";
+import { Plus, Save, Search, RefreshCw, AlertCircle } from "lucide-react";
 import { getAssignmentMonthlyCosts } from "@/data/freelancerData";
 import type { BillingType, FreelancerAssignment, NewFreelancerAssignmentRequest } from "@/types/freelancer";
 import type { TeamMember } from "@/types/dashboard";
@@ -126,7 +126,7 @@ export default function FreelancerAssignments() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch contractor assignments from API
-  const { data: apiAssignments = [], isPending: assignmentsPending } = useQuery({
+  const { data: apiAssignments = [], isPending: assignmentsPending, isError: assignmentsError, refetch: refetchAssignments } = useQuery({
     queryKey: ["freelancer-assignments"],
     queryFn: async () => {
       const rows = await apiClient.get<ApiAssignment[]>("/api/v1/freelancer-assignments");
@@ -136,6 +136,7 @@ export default function FreelancerAssignments() {
   });
 
   const isLoading = assignmentsPending || teamPending;
+  const hasError = assignmentsError;
 
   // BUG 1 & 5: Single source of truth for active contractors
   const activeContractors = useMemo(() => {
@@ -388,8 +389,18 @@ export default function FreelancerAssignments() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Freelancer Assignments</h1>
           <p className="text-muted-foreground text-sm">Track billable freelancer costs by project and month.</p>
+          {isLoading && <p className="text-xs text-muted-foreground mt-2">Loading data...</p>}
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={() => refetchAssignments()}
+            variant="outline"
+            size="sm"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" /> New Assignment
           </Button>
@@ -398,6 +409,31 @@ export default function FreelancerAssignments() {
           </Button>
         </div>
       </div>
+
+      {/* Error State Display */}
+      {hasError && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3"
+        >
+          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium text-red-900 dark:text-red-200">Failed to load assignments</p>
+            <p className="text-sm text-red-800 dark:text-red-300 mt-1">
+              Unable to fetch freelancer assignments. Please check your connection and try again.
+            </p>
+          </div>
+          <Button
+            onClick={() => refetchAssignments()}
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+          >
+            Retry
+          </Button>
+        </motion.div>
+      )}
 
       {/* BUG 4: KPI Cards with skeleton loading */}
       <AnimatePresence mode="wait">
