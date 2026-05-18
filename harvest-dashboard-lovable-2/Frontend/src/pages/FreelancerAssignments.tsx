@@ -68,7 +68,16 @@ function isAssignmentActive(startDate: string | null | undefined, endDate: strin
   const start = startDate ? new Date(startDate) : null;
   const end = endDate ? new Date(endDate) : null;
 
-  return (!start && !end) || (!end && start && start <= today) || (start && start <= today && end && end >= today);
+  // Active if:
+  // 1. Both dates null (ongoing)
+  // 2. Only end null, started (no end = ongoing once started)
+  // 3. Only start null, hasn't ended (no start = ongoing until end)
+  // 4. Both exist and today falls within range
+  if (!start && !end) return true;
+  if (!end && start && start <= today) return true;
+  if (!start && end && end >= today) return true;
+  if (start && end && start <= today && end >= today) return true;
+  return false;
 }
 
 function requestToAssignment(req: NewFreelancerAssignmentRequest): FreelancerAssignment {
