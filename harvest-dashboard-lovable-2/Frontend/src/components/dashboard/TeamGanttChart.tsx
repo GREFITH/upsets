@@ -54,63 +54,90 @@ interface Props {
 }
 
 // ── All Members Grid View ────────────────────────────────────────────────────
-function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMember[]; projects: Project[]; today: Date; in30Days: Date }) {
+function isNonBillable(p: Project): boolean {
+  if (p.isActive === false) return true;
+  const name = (p.projectName ?? "").toLowerCase();
+  const client = (p.clientName ?? "").toLowerCase();
+  return (
+    name.includes("non-billable") ||
+    client.includes("non-billable") ||
+    name.includes("upspring non") ||
+    name.includes("award submission") ||
+    name.includes("internal")
+  );
+}
+
+function AllMembersGridView({ team, projects, today, in30Days, showNonBillable }: { team: TeamMember[]; projects: Project[]; today: Date; in30Days: Date; showNonBillable: boolean }) {
+  const displayProjects = useMemo(
+    () => (showNonBillable ? projects : projects.filter((p) => !isNonBillable(p))),
+    [projects, showNonBillable],
+  );
+
   const monthsSet = useMemo(() => {
     const months = new Set<string>();
-
-    // Extended range: 24 months back from today to 6 months ahead (2024 to 2026)
-    const now = today;
-    const twoYearsAgo = addMonths(now, -24);
-    const sixMonthsAhead = addMonths(now, 6);
-    const allMonths = eachMonthOfInterval({ start: twoYearsAgo, end: sixMonthsAhead });
-    allMonths.forEach((m) => months.add(format(m, "yyyy-MM")));
-
+    displayProjects.forEach((p) => {
+      if (!p.startDate || !p.endDate) return;
+      const start = parseISO(p.startDate);
+      const end = parseISO(p.endDate);
+      eachMonthOfInterval({ start, end: addMonths(end, 2) }).forEach((m) =>
+        months.add(format(m, "yyyy-MM")),
+      );
+    });
+    for (let i = 0; i < 3; i++) months.add(format(addMonths(today, i), "yyyy-MM"));
     return Array.from(months).sort();
-  }, [today]);
+  }, [displayProjects, today]);
 
-  function getMonthCell(member: TeamMember, monthStr: string): { type: "project" | "gap" | "empty"; project?: Project; color?: { bg: string; text: string } } {
+  function getMonthCell(member: TeamMember, monthStr: string): {
+    type: "project-start" | "project-continuation" | "gap" | "empty";
+    project?: Project;
+    color?: { bg: string; text: string };
+    endingSoon?: boolean;
+  } {
     const [year, month] = monthStr.split("-");
-    const monthDate = startOfDay(new Date(parseInt(year), parseInt(month) - 1, 1));
-    const monthEnd = startOfDay(addMonths(monthDate, 1));
+    const monthDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const monthEnd = addMonths(monthDate, 1);
 
-    const memberProjs = projects.filter(
-      (p) => {
-        if (!(p.assignedTeam ?? []).includes(member.id)) return false;
-        if (!p.startDate || !p.endDate) return false;
-        const projStart = startOfDay(parseISO(p.startDate));
-        const projEnd = startOfDay(parseISO(p.endDate));
-        return projStart < monthEnd && projEnd >= monthDate;
-      }
+    const memberProjs = displayProjects.filter(
+      (p) =>
+        (p.assignedTeam ?? []).includes(member.id) &&
+        p.startDate && p.endDate &&
+        parseISO(p.startDate) < monthEnd &&
+        parseISO(p.endDate) > monthDate,
     );
 
     if (memberProjs.length > 0) {
       const proj = memberProjs[0];
+      const isStartMonth = format(parseISO(proj.startDate), "yyyy-MM") === monthStr;
+      const endDate = parseISO(proj.endDate);
+      const endingSoon = !isBefore(endDate, today) && !isAfter(endDate, in30Days);
       return {
-        type: "project",
+        type: isStartMonth ? "project-start" : "project-continuation",
         project: proj,
         color: colorForId(proj.id, proj.status === "extended"),
+        endingSoon,
       };
     }
 
-    // Check if there's a gap (no project, but has projects before and after)
-    const allMemberProjs = projects.filter((p) => (p.assignedTeam ?? []).includes(member.id) && p.startDate && p.endDate);
-    const hasProjectBefore = allMemberProjs.some((p) => startOfDay(parseISO(p.endDate)) < monthDate);
-    const hasProjectAfter = allMemberProjs.some((p) => startOfDay(parseISO(p.startDate)) >= monthEnd);
+    const allMemberProjs = displayProjects.filter(
+      (p) => (p.assignedTeam ?? []).includes(member.id) && p.startDate && p.endDate,
+    );
+    const hasProjectBefore = allMemberProjs.some((p) => parseISO(p.endDate) <= monthDate);
+    const hasProjectAfter  = allMemberProjs.some((p) => parseISO(p.startDate) >= monthEnd);
 
-    if (hasProjectBefore && hasProjectAfter) {
-      return { type: "gap" };
-    }
-
+    if (hasProjectBefore && hasProjectAfter) return { type: "gap" };
     return { type: "empty" };
   }
 
+  const greenStripeStyle: React.CSSProperties = {
+    backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(16,185,129,0.1) 10px, rgba(16,185,129,0.1) 20px)",
+  };
+
   return (
-    <div className="p-5 flex flex-col h-[700px]">
-      <div className="border rounded-lg overflow-hidden flex flex-col flex-1">
-        <div className="overflow-x-auto overflow-y-auto">
-          <table className="text-xs border-collapse">
-            <thead className="sticky top-0 z-20 bg-muted/50">
-              <tr>
+    <div className="p-5 overflow-x-auto">
+      <div className="inline-block border rounded-lg">
+        <table className="text-xs">
+          <thead>
+            <tr className="bg-muted/50 border-b">
               <th className="p-2 text-left font-semibold border-r min-w-[120px]">Team Member</th>
               {monthsSet.map((monthStr) => (
                 <th key={monthStr} className="p-2 text-center font-semibold border-r min-w-[60px] whitespace-nowrap">
@@ -130,84 +157,117 @@ function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMem
                   const cell = getMonthCell(member, monthStr);
                   return (
                     <td key={`${member.id}-${monthStr}`} className="p-1 text-center border-r">
-                      {cell.type === "project" && cell.project && cell.color && (
+
+                      {/* Project start — solid color box, red ring if ending within 30 days */}
+                      {cell.type === "project-start" && cell.project && cell.color && (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div
                                 className={cn(
                                   "h-10 rounded flex items-center justify-center text-[9px] font-semibold cursor-default truncate px-1",
-                                  cell.project.endDate && !isBefore(parseISO(cell.project.endDate), today) && !isAfter(parseISO(cell.project.endDate), in30Days) && "ring-2 ring-red-500 animate-pulse"
+                                  cell.endingSoon && "ring-2 ring-red-500 animate-pulse",
                                 )}
-                                style={{
-                                  background: cell.color.bg,
-                                  color: cell.color.text,
-                                }}
+                                style={{ background: cell.color.bg, color: cell.color.text }}
                               >
                                 {cell.project.projectName || cell.project.code}
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs max-w-[200px]">
-                              <div className="space-y-1">
-                                <p className="font-semibold">{cell.project.projectName}</p>
-                                <p className="text-muted-foreground">{cell.project.clientName}</p>
-                                <p className="text-muted-foreground">
-                                  {format(parseISO(cell.project.startDate), "MMM d, yyyy")} → {format(parseISO(cell.project.endDate), "MMM d, yyyy")}
+                            <TooltipContent side="top" className="text-xs max-w-[220px] space-y-1">
+                              <p className="font-semibold">{cell.project.projectName}</p>
+                              <p className="text-muted-foreground">{cell.project.clientName}</p>
+                              <p className="text-muted-foreground">
+                                {format(parseISO(cell.project.startDate), "MMM d, yyyy")} → {format(parseISO(cell.project.endDate), "MMM d, yyyy")}
+                              </p>
+                              {cell.endingSoon && (
+                                <p className="text-red-500 font-semibold">
+                                  ⚠ Ending in {differenceInDays(parseISO(cell.project.endDate), today)} days
                                 </p>
-                              </div>
+                              )}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       )}
-                      {cell.type === "gap" && (
-                        <div
-                          className="h-10 rounded bg-emerald-100 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800"
-                          style={{
-                            backgroundImage:
-                              "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(16,185,129,0.1) 10px, rgba(16,185,129,0.1) 20px)",
-                          }}
-                        />
+
+                      {/* Continuation — green stripe, tooltip shows availability date */}
+                      {cell.type === "project-continuation" && cell.project && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="h-10 rounded bg-emerald-100 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 cursor-default"
+                                style={greenStripeStyle}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs max-w-[220px] space-y-1">
+                              <p className="font-semibold text-emerald-700">Booked this month</p>
+                              <p className="text-muted-foreground">On: {cell.project.projectName}</p>
+                              <p className="text-muted-foreground">
+                                Available from: <span className="font-medium text-foreground">{format(parseISO(cell.project.endDate), "MMM d, yyyy")}</span>
+                              </p>
+                              {cell.endingSoon && (
+                                <p className="text-red-500 font-semibold">
+                                  ⚠ Project ending in {differenceInDays(parseISO(cell.project.endDate), today)} days
+                                </p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
+
+                      {/* Gap — green stripe, tooltip shows "available between projects" */}
+                      {cell.type === "gap" && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="h-10 rounded bg-emerald-100 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 cursor-default"
+                                style={greenStripeStyle}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs max-w-[180px] space-y-1">
+                              <p className="font-semibold text-emerald-700">Available</p>
+                              <p className="text-muted-foreground">No project assigned this month</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+
                     </td>
                   );
                 })}
               </tr>
             ))}
           </tbody>
-          </table>
+        </table>
+      </div>
+
+      {/* Legend */}
+      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[10px] text-muted-foreground/60">
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-3 rounded" style={{ background: BRAND.chartreuse }} />
+          <span>Active project start</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-3 rounded" style={{ background: "#fbbf24" }} />
+          <span>Extended project start</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div
+            className="h-3 w-3 rounded bg-emerald-100 border border-emerald-200"
+            style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(16,185,129,0.1) 4px, rgba(16,185,129,0.1) 8px)" }}
+          />
+          <span>Booked / Available gap</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-3 rounded ring-2 ring-red-500 animate-pulse bg-white dark:bg-background" />
+          <span>Ending soon*</span>
         </div>
       </div>
-      <div className="mt-4 space-y-3">
-        <div className="flex flex-wrap gap-x-5 gap-y-2 text-[10px] text-muted-foreground/60">
-          <div className="flex items-center gap-1.5">
-            <div className="h-3 w-3 rounded" style={{ background: BRAND.chartreuse }} />
-            <span>Active Project</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="h-3 w-3 rounded" style={{ background: "#fbbf24" }} />
-            <span>Extended Project</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="h-3 w-3 rounded" style={{ background: "#d1d5db" }} />
-            <span>Ended Project</span>
-          </div>
-          <div className="flex items-center gap-1.5 ">
-            <div
-              className="h-3 w-3 rounded"
-              style={{
-                background: "#d1f5e3",
-                backgroundImage:
-                  "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(16,185,129,0.2) 4px, rgba(16,185,129,0.2) 8px)",
-              }}
-            />
-            <span>Available (Gap)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="h-3 w-3 rounded ring-2 ring-red-500 animate-pulse" style={{ background: "transparent" }} />
-            <span>Ending in 30 days</span>
-          </div>
-        </div>
-      </div>
+      <p className="mt-1.5 text-[9px] text-muted-foreground/40 italic">
+        * Red pulsing border = project ending within 30 days — member will be available soon.
+        {!showNonBillable && " Non-billable projects hidden. Toggle above to show all."}
+      </p>
     </div>
   );
 }
@@ -248,22 +308,6 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
   const today = startOfDay(new Date());
   const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-  const isNonBillable = (p: Project) => {
-    if (p.isActive === false) return true;
-    const nameLower = (p.projectName ?? "").toLowerCase();
-    const clientLower = (p.clientName ?? "").toLowerCase();
-    if (nameLower.includes("non-billable")) return true;
-    if (clientLower.includes("non-billable")) return true;
-    if (nameLower.includes("upspring non")) return true;
-    if (nameLower.includes("award submission")) return true;
-    if (nameLower.includes("internal")) return true;
-    return false;
-  };
-
-  const filteredProjectsForDisplay = useMemo(() => {
-    return showNonBillable ? projects : projects.filter(p => !isNonBillable(p));
-  }, [projects, showNonBillable]);
-
   const sortedTeam = useMemo(
     () => [...team].sort((a, b) => a.name.localeCompare(b.name)),
     [team],
@@ -299,13 +343,11 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
   // Projects for the selected member
   const memberProjects = useMemo(() => {
     if (!selectedMember) return [];
-    return filteredProjectsForDisplay
+    return projects
       .filter(
-        (p) => {
-          if (!(p.assignedTeam ?? []).includes(selectedMember.id)) return false;
-          if (!p.startDate || !p.endDate || p.startDate === p.endDate) return false;
-          return true;
-        },
+        (p) =>
+          (p.assignedTeam ?? []).includes(selectedMember.id) &&
+          p.startDate && p.endDate && p.startDate !== p.endDate,
       )
       .map((p) => {
         const start = parseISO(p.startDate);
@@ -320,23 +362,28 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
         };
       })
       .sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [selectedMember, filteredProjectsForDisplay, today, in30Days]);
+  }, [selectedMember, projects, today, in30Days]);
 
   const availableFrom = selectedMember
     ? (availabilityMap.get(selectedMember.id) ?? null)
     : null;
 
-  // Timeline bounds - fixed 24-month range (24 months back, 6 months ahead)
+  // Timeline bounds
   const { tlStart, totalDays, months } = useMemo(() => {
-    const now = today;
-    const start24MonthsAgo = addMonths(now, -24);
-    const end6MonthsAhead = addMonths(now, 6);
+    if (memberProjects.length === 0) {
+      const s = startOfDay(new Date());
+      const e = addMonths(s, 6);
+      return { tlStart: s, totalDays: differenceInDays(e, s), months: eachMonthOfInterval({ start: s, end: e }) };
+    }
+    const all = memberProjects.flatMap((a) => [a.start, a.end]);
+    const tS  = startOfDay(all.reduce((mn, d) => (isBefore(d, mn) ? d : mn), all[0]));
+    const tE  = addMonths(all.reduce((mx, d) => (isAfter(d, mx) ? d : mx), all[0]), 2);
     return {
-      tlStart: start24MonthsAgo,
-      totalDays: Math.max(1, differenceInDays(end6MonthsAhead, start24MonthsAgo)),
-      months: eachMonthOfInterval({ start: start24MonthsAgo, end: end6MonthsAhead }),
+      tlStart: tS,
+      totalDays: Math.max(1, differenceInDays(tE, tS)),
+      months: eachMonthOfInterval({ start: tS, end: tE }),
     };
-  }, [today]);
+  }, [memberProjects]);
 
   function pct(d: Date) {
     return Math.max(0, Math.min(100, (differenceInDays(d, tlStart) / totalDays) * 100));
@@ -368,8 +415,8 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
               </div>
             </div>
 
-            {/* ── Mode toggle ──────────────────────────────────────────────── */}
-            <div className="flex items-center gap-3">
+            {/* ── Mode toggle + non-billable toggle ────────────────────── */}
+            <div className="flex items-center gap-2 shrink-0">
               <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as "individual" | "all-members")} className="border rounded-md p-0.5 bg-background">
                 <ToggleGroupItem value="individual" className="text-xs h-8" aria-label="Individual view">
                   Individual
@@ -378,14 +425,16 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
                   All Members
                 </ToggleGroupItem>
               </ToggleGroup>
-              <Button
-                variant={showNonBillable ? "default" : "outline"}
-                size="sm"
-                className="text-xs h-8"
-                onClick={() => setShowNonBillable(!showNonBillable)}
-              >
-                {showNonBillable ? "Showing" : "Hide"} Non-Billable
-              </Button>
+              {viewMode === "all-members" && (
+                <Button
+                  variant={showNonBillable ? "default" : "outline"}
+                  size="sm"
+                  className="text-xs h-8 shrink-0"
+                  onClick={() => setShowNonBillable((v) => !v)}
+                >
+                  {showNonBillable ? "All projects" : "Billable only"}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -470,9 +519,10 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
         {viewMode === "all-members" && (
           <AllMembersGridView
             team={sortedTeam}
-            projects={filteredProjectsForDisplay}
+            projects={projects}
             today={today}
             in30Days={in30Days}
+            showNonBillable={showNonBillable}
           />
         )}
 

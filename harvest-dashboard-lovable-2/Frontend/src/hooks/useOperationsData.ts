@@ -98,6 +98,8 @@ type OverviewProject = {
   status: string;
   deadline: string | null;
   startsOn?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
   originalEndDate?: string | null;
   daysLate?: number | null;
   monthlyFee?: number;
@@ -179,8 +181,8 @@ async function fetchOperationsDataset(): Promise<OperationsDataset> {
       department: dept,
       isActive: p.isActive ?? true,
       status: normalizeProjectStatus(p.status, p.isActive ?? true),
-      startDate: p.startsOn ?? p.deadline ?? new Date().toISOString(),
-      endDate: p.deadline ?? p.startsOn ?? new Date().toISOString(),
+      startDate: p.startDate ?? p.startsOn ?? p.deadline ?? new Date().toISOString(),
+      endDate: p.endDate ?? p.deadline ?? p.startsOn ?? new Date().toISOString(),
       originalEndDate: p.originalEndDate ?? undefined,
       daysLate: p.daysLate ?? undefined,
       monthlyFee: p.monthlyFee ?? 0,
