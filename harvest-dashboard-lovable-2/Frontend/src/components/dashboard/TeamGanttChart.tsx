@@ -57,34 +57,29 @@ interface Props {
 function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMember[]; projects: Project[]; today: Date; in30Days: Date }) {
   const monthsSet = useMemo(() => {
     const months = new Set<string>();
-    projects.forEach((p) => {
-      if (!p.startDate || !p.endDate) return;
-      const start = parseISO(p.startDate);
-      const end = parseISO(p.endDate);
-      const months_list = eachMonthOfInterval({ start, end: addMonths(end, 2) });
-      months_list.forEach((m) => months.add(format(m, "yyyy-MM")));
-    });
-    // Add all historical months from 2024 + current + future months
+
+    // Extended range: 24 months back from today to 6 months ahead (2024 to 2026)
     const now = today;
-    // Go back to January 2024 (about 24 months back from mid-2026, or more if earlier)
     const twoYearsAgo = addMonths(now, -24);
     const sixMonthsAhead = addMonths(now, 6);
     const allMonths = eachMonthOfInterval({ start: twoYearsAgo, end: sixMonthsAhead });
     allMonths.forEach((m) => months.add(format(m, "yyyy-MM")));
+
     return Array.from(months).sort();
   }, [today]);
 
   function getMonthCell(member: TeamMember, monthStr: string): { type: "project" | "gap" | "empty"; project?: Project; color?: { bg: string; text: string } } {
     const [year, month] = monthStr.split("-");
-    const monthDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-    const monthEnd = addMonths(monthDate, 1);
+    const monthDate = startOfDay(new Date(parseInt(year), parseInt(month) - 1, 1));
+    const monthEnd = startOfDay(addMonths(monthDate, 1));
 
     const memberProjs = projects.filter(
       (p) => {
         if (!(p.assignedTeam ?? []).includes(member.id)) return false;
         if (!p.startDate || !p.endDate) return false;
-        if (!(parseISO(p.startDate) < monthEnd && parseISO(p.endDate) > monthDate)) return false;
-        return true;
+        const projStart = startOfDay(parseISO(p.startDate));
+        const projEnd = startOfDay(parseISO(p.endDate));
+        return projStart < monthEnd && projEnd >= monthDate;
       }
     );
 
@@ -99,8 +94,8 @@ function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMem
 
     // Check if there's a gap (no project, but has projects before and after)
     const allMemberProjs = projects.filter((p) => (p.assignedTeam ?? []).includes(member.id) && p.startDate && p.endDate);
-    const hasProjectBefore = allMemberProjs.some((p) => parseISO(p.endDate) <= monthDate);
-    const hasProjectAfter = allMemberProjs.some((p) => parseISO(p.startDate) >= monthEnd);
+    const hasProjectBefore = allMemberProjs.some((p) => startOfDay(parseISO(p.endDate)) < monthDate);
+    const hasProjectAfter = allMemberProjs.some((p) => startOfDay(parseISO(p.startDate)) >= monthEnd);
 
     if (hasProjectBefore && hasProjectAfter) {
       return { type: "gap" };
@@ -331,22 +326,17 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
     ? (availabilityMap.get(selectedMember.id) ?? null)
     : null;
 
-  // Timeline bounds
+  // Timeline bounds - fixed 24-month range (24 months back, 6 months ahead)
   const { tlStart, totalDays, months } = useMemo(() => {
-    if (memberProjects.length === 0) {
-      const s = startOfDay(new Date());
-      const e = addMonths(s, 6);
-      return { tlStart: s, totalDays: differenceInDays(e, s), months: eachMonthOfInterval({ start: s, end: e }) };
-    }
-    const all = memberProjects.flatMap((a) => [a.start, a.end]);
-    const tS  = startOfDay(all.reduce((mn, d) => (isBefore(d, mn) ? d : mn), all[0]));
-    const tE  = addMonths(all.reduce((mx, d) => (isAfter(d, mx) ? d : mx), all[0]), 2);
+    const now = today;
+    const start24MonthsAgo = addMonths(now, -24);
+    const end6MonthsAhead = addMonths(now, 6);
     return {
-      tlStart: tS,
-      totalDays: Math.max(1, differenceInDays(tE, tS)),
-      months: eachMonthOfInterval({ start: tS, end: tE }),
+      tlStart: start24MonthsAgo,
+      totalDays: Math.max(1, differenceInDays(end6MonthsAhead, start24MonthsAgo)),
+      months: eachMonthOfInterval({ start: start24MonthsAgo, end: end6MonthsAhead }),
     };
-  }, [memberProjects]);
+  }, [today]);
 
   function pct(d: Date) {
     return Math.max(0, Math.min(100, (differenceInDays(d, tlStart) / totalDays) * 100));
@@ -664,7 +654,7 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
                             </div>
 
                             {/* Timeline row */}
-                            <div className="relative flex-1 h-9 ml-4 bg-muted/20 rounded-lg overflow-hidden">
+                            <div className="relative flex-1 h-9 bg-muted/20 rounded-lg overflow-hidden">
                               {months.map((m) => (
                                 <div
                                   key={m.toISOString()}
