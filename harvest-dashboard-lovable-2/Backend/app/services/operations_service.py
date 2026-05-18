@@ -357,6 +357,12 @@ def _build_team_rows(
                 "accessRoles": u.access_roles,
                 "canCreateProjects": u.can_create_projects,
                 "roles": u.roles,
+                "hasAccessToAllFutureProjects": u.has_access_to_all_future_projects,
+                "calendarIntegrationEnabled": u.calendar_integration_enabled,
+                "calendarIntegrationSource": u.calendar_integration_source,
+                "permissionsClaims": u.permissions_claims,
+                "employeeId": u.employee_id,
+                "telephone": u.telephone,
             }
         )
     return team_rows

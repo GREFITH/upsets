@@ -66,10 +66,17 @@ export interface TeamMember {
   /** Fully loaded annual salary (salary + benefits + overhead) */
   loadedAnnualSalary?: number;
   isContractor?: boolean;
+  hasAccessToAllFutureProjects?: boolean;
+  canCreateProjects?: boolean;
+  calendarIntegrationEnabled?: boolean;
+  calendarIntegrationSource?: string;
   avatarUrl?: string;
   timezone?: string;
+  telephone?: string;
+  employeeId?: string;
   accessRoles?: string[];
-  canCreateProjects?: boolean;
+  permissionsClaims?: string[];
+  roles?: string[];
 }
 
 export interface ForecastMonth {

@@ -551,23 +551,28 @@ class SyncService:
                 "last_name": (payload.get("last_name") or "").strip(),
                 "email": payload.get("email"),
                 "is_contractor": bool(payload.get("is_contractor", False)),
-                "avatar_url": payload.get("avatar_url"),
-                "timezone": payload.get("timezone"),
-                "access_roles": payload.get("access_roles", []),
                 "has_access_to_all_future_projects": bool(payload.get("has_access_to_all_future_projects", False)),
                 "can_create_projects": bool(payload.get("can_create_projects", False)),
-                "telephone": payload.get("telephone"),
+                "calendar_integration_enabled": bool(payload.get("calendar_integration_enabled", False)),
+                "avatar_url": payload.get("avatar_url"),
+                "timezone": payload.get("timezone"),
+                "telephone": payload.get("telephone") or None,
                 "employee_id": payload.get("employee_id"),
+                "calendar_integration_source": payload.get("calendar_integration_source"),
+                "access_roles": payload.get("access_roles", []),
+                "permissions_claims": payload.get("permissions_claims", {}),
                 "roles": payload.get("roles", []),
                 "is_active": bool(payload.get("is_active", True)),
+                "weekly_capacity": _num(payload.get("weekly_capacity")),
+                "default_hourly_rate": _num(payload.get("default_hourly_rate")),
                 "cost_rate": _num(payload.get("cost_rate")),
-                "payload": {},
             })
         if rows:
             _user_cols = (
-                "first_name", "last_name", "email", "is_contractor", "avatar_url", "timezone",
-                "access_roles", "has_access_to_all_future_projects", "can_create_projects",
-                "telephone", "employee_id", "roles", "is_active", "cost_rate", "payload"
+                "first_name", "last_name", "email", "is_contractor", "has_access_to_all_future_projects",
+                "can_create_projects", "calendar_integration_enabled", "avatar_url", "timezone", "telephone",
+                "employee_id", "calendar_integration_source", "access_roles", "permissions_claims", "roles",
+                "is_active", "weekly_capacity", "default_hourly_rate", "cost_rate"
             )
             for i in range(0, len(rows), _BULK_UPSERT_CHUNK):
                 chunk = rows[i : i + _BULK_UPSERT_CHUNK]
