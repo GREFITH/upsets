@@ -44,9 +44,23 @@ type ApiTeamMember = {
   department?: string;
   projects: number[];
   utilization: number;
+  billableUtilization?: number;
+  internalUtilization?: number;
   hoursWorked: number;
   targetHours: number;
   costRate?: number | null;
+  isContractor?: boolean;
+  hasAccessToAllFutureProjects?: boolean;
+  canCreateProjects?: boolean;
+  calendarIntegrationEnabled?: boolean;
+  calendarIntegrationSource?: string;
+  avatarUrl?: string;
+  timezone?: string;
+  telephone?: string;
+  employeeId?: string;
+  accessRoles?: string[];
+  permissionsClaims?: string[];
+  roles?: string[];
 };
 
 type ApiDepartmentMetric = {
@@ -126,9 +140,23 @@ function mapTeamMember(member: ApiTeamMember): TeamMember {
     role: member.role,
     department: asDepartment(member.department ?? "unassigned"),
     utilization: member.utilization,
+    billableUtilization: member.billableUtilization,
+    internalUtilization: member.internalUtilization,
     clientLoad: projectIds.length,
     assignedProjects: projectIds.map(String),
     loadedAnnualSalary: member.costRate ?? undefined,
+    isContractor: member.isContractor,
+    hasAccessToAllFutureProjects: member.hasAccessToAllFutureProjects,
+    canCreateProjects: member.canCreateProjects,
+    calendarIntegrationEnabled: member.calendarIntegrationEnabled,
+    calendarIntegrationSource: member.calendarIntegrationSource,
+    avatarUrl: member.avatarUrl,
+    timezone: member.timezone,
+    telephone: member.telephone,
+    employeeId: member.employeeId,
+    accessRoles: member.accessRoles,
+    permissionsClaims: member.permissionsClaims,
+    roles: member.roles,
   };
 }
 
