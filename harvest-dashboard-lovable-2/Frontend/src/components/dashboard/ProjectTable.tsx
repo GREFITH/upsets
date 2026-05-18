@@ -2,7 +2,7 @@ import { Project, TeamMember } from "@/types/dashboard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Users, MoreHorizontal } from "lucide-react";
+import { Calendar, Users, MoreHorizontal, HelpCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -45,7 +45,27 @@ export function ProjectTable({ projects, teamMembers: _teamMembers, onEditDates,
               <TableHead className="text-xs font-semibold text-right">Gross Margin</TableHead>
               <TableHead className="text-xs font-semibold text-right">Loaded Net</TableHead>
               <TableHead className="text-xs font-semibold text-right">Loaded Margin</TableHead>
-              <TableHead className="text-xs font-semibold text-right">Utilization</TableHead>
+              <TableHead className="text-xs font-semibold text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <span>Utilization</span>
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs text-xs">
+                        <div className="space-y-2">
+                          <p className="font-semibold">Team Utilization %</p>
+                          <p>Average hours worked by assigned team members vs their target (160 hrs/month)</p>
+                          <p className="text-emerald-400">• &lt;100%: Capacity available</p>
+                          <p className="text-yellow-400">• 80-100%: Fully utilized</p>
+                          <p className="text-red-400">• &gt;100%: Over-allocated</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </TableHead>
               <TableHead className="text-xs font-semibold w-10"></TableHead>
             </TableRow>
           </TableHeader>
@@ -149,6 +169,35 @@ export function ProjectTable({ projects, teamMembers: _teamMembers, onEditDates,
             })}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Legend explaining metrics */}
+      <div className="p-4 border-t bg-muted/20 space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground">Metrics Legend</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="space-y-1">
+            <p className="font-medium">Gross Net / Gross Margin</p>
+            <p className="text-muted-foreground">Revenue minus direct costs (freelancers, commissions, other)</p>
+          </div>
+          <div className="space-y-1">
+            <p className="font-medium">Loaded Net / Loaded Margin</p>
+            <p className="text-muted-foreground">Net revenue minus fully-loaded team salaries (salary + benefits + overhead)</p>
+          </div>
+          <div className="space-y-1">
+            <p className="font-medium">Utilization</p>
+            <p className="text-muted-foreground">
+              <strong>Formula:</strong> (Team Hours Worked ÷ 160 hrs/month target) × 100
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="font-medium">Utilization Thresholds</p>
+            <div className="space-y-0.5 text-muted-foreground">
+              <p><span className="text-green-600 font-medium">&lt;100%</span> = Capacity available</p>
+              <p><span className="text-orange-600 font-medium">80-100%</span> = Fully utilized</p>
+              <p><span className="text-red-600 font-medium">&gt;100%</span> = Over-allocated</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
