@@ -550,12 +550,25 @@ class SyncService:
                 "first_name": (payload.get("first_name") or "").strip(),
                 "last_name": (payload.get("last_name") or "").strip(),
                 "email": payload.get("email"),
+                "is_contractor": bool(payload.get("is_contractor", False)),
+                "avatar_url": payload.get("avatar_url"),
+                "timezone": payload.get("timezone"),
+                "access_roles": payload.get("access_roles", []),
+                "has_access_to_all_future_projects": bool(payload.get("has_access_to_all_future_projects", False)),
+                "can_create_projects": bool(payload.get("can_create_projects", False)),
+                "telephone": payload.get("telephone"),
+                "employee_id": payload.get("employee_id"),
+                "roles": payload.get("roles", []),
                 "is_active": bool(payload.get("is_active", True)),
                 "cost_rate": _num(payload.get("cost_rate")),
                 "payload": {},
             })
         if rows:
-            _user_cols = ("first_name", "last_name", "email", "is_active", "cost_rate", "payload")
+            _user_cols = (
+                "first_name", "last_name", "email", "is_contractor", "avatar_url", "timezone",
+                "access_roles", "has_access_to_all_future_projects", "can_create_projects",
+                "telephone", "employee_id", "roles", "is_active", "cost_rate", "payload"
+            )
             for i in range(0, len(rows), _BULK_UPSERT_CHUNK):
                 chunk = rows[i : i + _BULK_UPSERT_CHUNK]
                 stmt = pg_insert(HarvestUser).values(chunk)

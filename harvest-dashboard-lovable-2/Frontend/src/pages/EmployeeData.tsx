@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEPARTMENTS, TeamMember } from "@/types/dashboard";
 import { Save, DollarSign } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -16,9 +17,21 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(value);
 }
 
+type ContractorFilter = "all" | "full-time" | "contractors";
+
 export default function EmployeeData() {
   const { data: teamData, isPending } = useTeamMembers();
   const [members, setMembers] = useState<TeamMember[]>(() => [...(teamData ?? [])]);
+  const [filter, setFilter] = useState<ContractorFilter>("all");
+
+  const filteredMembers = useMemo(() => {
+    if (filter === "contractors") {
+      return members.filter((m) => m.isContractor === true);
+    } else if (filter === "full-time") {
+      return members.filter((m) => m.isContractor !== true);
+    }
+    return members;
+  }, [members, filter]);
 
   useEffect(() => {
     if (teamData) setMembers([...teamData]);
@@ -44,7 +57,7 @@ export default function EmployeeData() {
     }
   }
 
-  const totalLoadedCost = members.reduce((s, m) => s + (m.loadedAnnualSalary || 0), 0);
+  const totalLoadedCost = filteredMembers.reduce((s, m) => s + (m.loadedAnnualSalary || 0), 0);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -56,6 +69,15 @@ export default function EmployeeData() {
         <Button onClick={handleSave}>
           <Save className="h-4 w-4 mr-2" /> Save Changes
         </Button>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-medium">Filter:</span>
+        <ToggleGroup type="single" value={filter} onValueChange={(v) => setFilter(v as ContractorFilter)}>
+          <ToggleGroupItem value="all">All</ToggleGroupItem>
+          <ToggleGroupItem value="full-time">Full-time</ToggleGroupItem>
+          <ToggleGroupItem value="contractors">Contractors</ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -87,7 +109,7 @@ export default function EmployeeData() {
                 {isPending ? (
                   <Skeleton className="h-8 w-28 mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold">{formatCurrency(members.length > 0 ? totalLoadedCost / members.length : 0)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(filteredMembers.length > 0 ? totalLoadedCost / filteredMembers.length : 0)}</p>
                 )}
               </div>
             </div>
@@ -123,7 +145,7 @@ export default function EmployeeData() {
         </div>
       ) : (
         DEPARTMENTS.map((dept) => {
-          const deptMembers = members.filter((m) => m.department === dept.id);
+          const deptMembers = filteredMembers.filter((m) => m.department === dept.id);
           if (deptMembers.length === 0) return null;
           return (
             <Card key={dept.id}>
@@ -139,6 +161,7 @@ export default function EmployeeData() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Role</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Utilization</TableHead>
                       <TableHead>Projects</TableHead>
                       <TableHead className="text-right">Loaded Annual Salary</TableHead>
@@ -149,6 +172,11 @@ export default function EmployeeData() {
                       <TableRow key={m.id}>
                         <TableCell className="font-medium">{m.name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{m.role}</TableCell>
+                        <TableCell>
+                          <Badge variant={m.isContractor ? "outline" : "default"} className={m.isContractor ? "bg-amber-50 text-amber-900 border-amber-200" : "bg-green-50 text-green-900 border-green-200"}>
+                            {m.isContractor ? "Contractor" : "Full-time"}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <Badge variant={m.utilization > 90 ? "destructive" : m.utilization > 75 ? "default" : "secondary"}>
                             {m.utilization}%

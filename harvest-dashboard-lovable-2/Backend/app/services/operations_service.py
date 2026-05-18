@@ -331,11 +331,18 @@ def _build_team_rows(
         billable_utilization = round((billable_hours / target) * 100, 2) if target else 0.0
         internal_utilization = round((internal_hours / target) * 100, 2) if target else 0.0
         dept = primary_department_for_user(u.harvest_id)
+        role_str = "Team Member"
+        if u.roles:
+            if isinstance(u.roles, list):
+                role_str = u.roles[0] if u.roles else "Team Member"
+            else:
+                role_str = str(u.roles).split(",")[0].strip()
+
         team_rows.append(
             {
                 "id": u.harvest_id,
                 "name": f"{u.first_name or ''} {u.last_name or ''}".strip() or f"User {u.harvest_id}",
-                "role": (u.roles or "Team Member").split(",")[0].strip() if u.roles else "Team Member",
+                "role": role_str,
                 "department": dept,
                 "projects": list(dict.fromkeys(user_projects.get(u.harvest_id, []))),
                 "utilization": utilization,
@@ -344,6 +351,12 @@ def _build_team_rows(
                 "hoursWorked": round(hours, 2),
                 "targetHours": target,
                 "costRate": float(u.cost_rate) if u.cost_rate is not None else None,
+                "isContractor": u.is_contractor,
+                "avatarUrl": u.avatar_url,
+                "timezone": u.timezone,
+                "accessRoles": u.access_roles,
+                "canCreateProjects": u.can_create_projects,
+                "roles": u.roles,
             }
         )
     return team_rows

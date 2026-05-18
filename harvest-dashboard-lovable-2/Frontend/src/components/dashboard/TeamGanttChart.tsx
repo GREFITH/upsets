@@ -205,44 +205,10 @@ function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMem
             />
             <span>Available (Gap)</span>
           </div>
-        </div>
-        <div className="text-[10px] text-muted-foreground/60 border-t pt-2">
-          <p className="font-medium mb-1.5">Project Brand Colors</p>
-          <div className="flex flex-wrap gap-x-5 gap-y-1.5">
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded" style={{ background: BRAND.chartreuse }} />
-              <span>Brand Chartreuse</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded" style={{ background: BRAND.blue }} />
-              <span>Brand Blue</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded" style={{ background: BRAND.blueMid }} />
-              <span>Brand Blue Mid</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded" style={{ background: "#ECE81A" }} />
-              <span>Bright Yellow</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded" style={{ background: BRAND.blueLight }} />
-              <span>Brand Blue Light</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded" style={{ background: BRAND.blueDark }} />
-              <span>Brand Blue Dark</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded" style={{ background: "#F5EC4D" }} />
-              <span>Light Yellow</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded" style={{ background: "#3a7a9c" }} />
-              <span>Teal Blue</span>
-            </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded ring-2 ring-red-500 animate-pulse" style={{ background: "transparent" }} />
+            <span>Ending in 30 days</span>
           </div>
-          <p className="text-[9px] text-muted-foreground/50 mt-2 italic">Each project gets a unique color from the brand palette</p>
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@ import { Plus, DollarSign, Users, TrendingDown, Save } from "lucide-react";
 import { getAssignmentMonthlyCosts } from "@/data/freelancerData";
 import type { FreelancerAssignment, NewFreelancerAssignmentRequest } from "@/types/freelancer";
 import { NewFreelancerDialog } from "@/components/dashboard/NewFreelancerDialog";
-import { useProjects } from "@/hooks/usePageData";
+import { useProjects, useTeamMembers } from "@/hooks/usePageData";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -44,7 +44,12 @@ function requestToAssignment(req: NewFreelancerAssignmentRequest): FreelancerAss
 
 export default function FreelancerAssignments() {
   const { data: projectList } = useProjects();
+  const { data: teamData } = useTeamMembers();
   const projects = projectList ?? [];
+  const contractors = useMemo(
+    () => (teamData ?? []).filter((m) => m.isContractor === true),
+    [teamData]
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [assignments, setAssignments] = useState<FreelancerAssignment[]>([]);
 
@@ -147,7 +152,7 @@ export default function FreelancerAssignments() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -155,10 +160,29 @@ export default function FreelancerAssignments() {
                 <Users className="h-5 w-5 text-secondary-foreground" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Active Freelancers</p>
-                <p className="text-2xl font-bold">{uniqueFreelancers}</p>
+                <p className="text-sm text-muted-foreground">Active Contractors</p>
+                <p className="text-2xl font-bold">{contractors.length}</p>
               </div>
             </div>
+            {contractors.length > 0 && (
+              <div className="mt-4 text-xs space-y-1">
+                {contractors.slice(0, 3).map((c) => (
+                  <div key={c.id} className="flex items-center gap-1.5">
+                    {c.avatarUrl ? (
+                      <img src={c.avatarUrl} alt={c.name} className="h-4 w-4 rounded-full" />
+                    ) : (
+                      <div className="h-4 w-4 rounded-full bg-muted flex items-center justify-center text-[8px] font-semibold">
+                        {c.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </div>
+                    )}
+                    <span className="text-muted-foreground truncate">{c.name}</span>
+                  </div>
+                ))}
+                {contractors.length > 3 && (
+                  <p className="text-muted-foreground">+{contractors.length - 3} more</p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -302,7 +326,7 @@ export default function FreelancerAssignments() {
         </CardContent>
       </Card>
 
-      <NewFreelancerDialog open={dialogOpen} onOpenChange={setDialogOpen} onSubmit={addAssignment} />
+      <NewFreelancerDialog open={dialogOpen} onOpenChange={setDialogOpen} onSubmit={addAssignment} contractors={contractors} />
     </motion.div>
   );
 }

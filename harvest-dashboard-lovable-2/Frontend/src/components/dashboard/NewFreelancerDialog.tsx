@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { TeamMember } from "@/types/dashboard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +15,10 @@ interface NewFreelancerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit?: (data: NewFreelancerAssignmentRequest) => void;
+  contractors?: TeamMember[];
 }
 
-export function NewFreelancerDialog({ open, onOpenChange, onSubmit }: NewFreelancerDialogProps) {
+export function NewFreelancerDialog({ open, onOpenChange, onSubmit, contractors = [] }: NewFreelancerDialogProps) {
   const { data } = useOperationsData();
   const [projectCode, setProjectCode] = useState("");
   const [freelancerName, setFreelancerName] = useState("");
@@ -101,8 +103,19 @@ export function NewFreelancerDialog({ open, onOpenChange, onSubmit }: NewFreelan
           </div>
 
           <div className="space-y-2">
-            <Label>Freelancer Name *</Label>
-            <Input value={freelancerName} onChange={(e) => setFreelancerName(e.target.value)} placeholder="e.g. Jane Doe" />
+            <Label>Freelancer *</Label>
+            <Select value={freelancerName} onValueChange={setFreelancerName}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a contractor" />
+              </SelectTrigger>
+              <SelectContent>
+                {contractors.map((c) => (
+                  <SelectItem key={c.id} value={c.name}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
