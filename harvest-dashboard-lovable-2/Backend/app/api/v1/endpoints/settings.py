@@ -121,9 +121,42 @@ async def update_financial_overrides(
     return {"ok": True}
 
 
+def _is_internal_assignment(client_name: str | None, project_name: str | None) -> bool:
+    """Check if an assignment is internal/non-billable based on client and project names."""
+    INTERNAL_CLIENT_PATTERNS = [
+        "upspring: internal",
+        "upspring: business development",
+        "upspring: marketing & pr",
+        "upspring: podcast",
+        "upspring: marketing",
+    ]
+
+    INTERNAL_PROJECT_PATTERNS = [
+        "non-billable",
+        "meetings",
+        "company initiatives",
+        "business development",
+        "podcast",
+        "website maintenance",
+    ]
+
+    client_lower = (client_name or "").lower()
+    project_lower = (project_name or "").lower()
+
+    if any(p in client_lower for p in INTERNAL_CLIENT_PATTERNS):
+        return True
+    if "non-billable" in project_lower:
+        return True
+    if client_lower == "upspring":
+        return True
+    if any(p in project_lower for p in INTERNAL_PROJECT_PATTERNS):
+        return True
+    return False
+
+
 @router.get("/freelancer-assignments")
 async def get_freelancer_assignments(db: AsyncSession = Depends(get_db)) -> list[dict]:
-    """Fetch all contractor-to-project assignments with costs from existing tables."""
+    """Fetch all billable contractor-to-project assignments with costs from existing tables."""
     from sqlalchemy import and_
 
     # Join user_assignments -> users -> projects -> clients
@@ -146,6 +179,14 @@ async def get_freelancer_assignments(db: AsyncSession = Depends(get_db)) -> list
 
     result = []
     for assignment, user, project, client in assignments:
+        # Filter out internal/non-billable assignments
+        if _is_internal_assignment(client.name if client else None, project.name):
+            continue
+
+        # Filter out E2M Team internal account
+        if user.first_name == "E2M":
+            continue
+
         # Cost per month: hourly_rate or cost_rate * 160 hours/month (or from assignment budget)
         monthly_cost = 0
         if assignment.hourly_rate:
