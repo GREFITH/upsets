@@ -1,0 +1,175 @@
+Mitesh Dabhi
+The another thing is like you said some demo, the Lovable app, but we are not able to access it.
+
+So if you can just give some brief. Yeah, I can.
+
+Sarah Terzic
+And I can also, I should be able to get an access, get you guys the right access here. Before we do that, do you have any questions on the brain?
+
+But you get what I'm trying to do basically from that. Brain file, we just got yesterday.
+
+Mitesh Dabhi
+So what we are building is as of now, we are building the whole flow that will give it to you based on what input you have given.
+
+So the input we got from you is like kind of like we are anticipating it's not that much difficult.
+
+Which we were anticipating earlier. So it's like little. It's easier for us to build. So what will we do?
+
+We'll just create a flow of it and we'll give it to you for the approval. And then if you think this is something which we are on the same understanding, then we'll take it out.
+
+Yeah, it's like, it's not all the automations. It's before we even got there.
+
+Sarah Terzic
+It's like literally just how do we architect the data, plug it in with permissions. Okay. So let me show you what I built here.
+
+I don't want it here. This was just the best way to show some information on what I'm thinking from a department hum.
+
+But, and none of this is real numbers or data right now, but basically what I'm doing right now in Claude is I have Google Sheets that have a breakdown of all the clients, what department they're in, what their monthly retainers are, if their project, what the accrual fees are over that course of time.
+
+time. What the start and stop dates are for the client contracts and who the team is that's assigned to all of that.
+
+And basically our department heads all are now really tracking what's their team on, are they available or are they not, what's the revenue that's coming into their department, is that healthy, do we need more clients in their sector, is our labor and our clients a good match, right?
+
+So these are all the kind of questions that we're trying to answer here. So you'll see there's like an overview with the total revenue, the gross loaded pipeline across the board, but it's really these dashboards on the, on the, um, on each department side that I want the team to be able to view and have access to.
+
+So again, it'll show them their revenue, the net revenue is just after any direct freelancer costs, it's not everything, it's just after any contract.
+
+Contractors or freelancers that we work with. And then it'll say how many active projects. I would want probably projects and clients because we have project codes.
+
+So a client might have two project codes. So it may say eight clients, but it's really, I mean, eight projects, but it's really five clients, let's say, right?
+
+So we split that out. And then how many team members are in that department? We redid and finished redoing all of our harvest updates.
+
+So now the goal would be to have the harvest API plug into this. So that you can see in real time what their utilization is, not just like seeing how many clients there are.
+
+They're on, but seeing how they're utilized on client work versus internal work month over month and have that update based off of the data in harvest.
+
+So that when the department heads are responsible for building client teams. So we have a client come in, then they need to go and be like, okay, who has room?
+
+Who can I put this on? Does anyone have projects? Exactly. Ending soon. And so that's why that data becomes so important.
+
+Right. All the projects. And then what, what else we've been requested are, and I can put this in a doc for you guys too, but we've also had requests where a team, team members, you can see, uh, hold on.
+
+I do this on the current team. You can see who's been on it in the past that might have been removed, which is like huge for the department heads because they really want to know, like we make, we have to make team changes a lot.
+
+And so they really need to know historically, like if a client pauses and comes back, or if they need to make another client move, who was on this before?
+
+Is there someone available that I can pull on that knows the client? Or if it's time for like a review period, we want to make sure we're capturing like all the work that that person did across the clients for the year.
+
+So anyway, so there's like current team and the assignment. history. And then, um, yeah, there's like a start and end date.
+
+So I don't have it actually here, but on my regular department hub, there's like a really simple chart. That's like January, February, March, April, May, June, and each person's name in the department or each person rather has one with their clients listed.
+
+And it's just like green are, are the months that they have their project timeline, that client, if it's January to May, it's green.
+
+January to May to count it, right? As a client. And then it'll drop off if that, if that timeline stops.
+
+So we can say, oh, they may not be free in March, but I can see in, in June, they have availability, right?
+
+Um, so that's that it's basically being fed from a client registry where we have the status as like active on track.
+
+Um, late is a good one for us too, just so we know where we may have We delivered the project yet.
+
+The team is not supposed to be working on it anymore, but we have not. Right. And so now that's like bleeding into our P&L.
+
+Um, and then, and then each time a client signs, like right now I have Claude doing a weekly scheduled task to get me a new dashboard.
+
+But then I still have to like every week, make sure that if there's changes on that static dashboard that the team's flagging me and I'm updating the source files and then I'm updating so that, you know, it's just like, it's, it's way too messy.
+
+So really we want it all to live in here. Right. So that when you come in to all departments, like if there's a new client signs, you actually onboard them here, not in a source file.
+
+Right. Right. In here, you're putting the client name, you're getting the project code, you're selecting the department, you're selecting maybe the monthly or project fee, the start and end date for that.
+
+So that every, and assigning the team members, right? So that everything is living in this hub without me needing to do it from 800 different places.
+
+Yep. Got it. Yep.
+
+Mitesh Dabhi
+So basically, uh, this is something which we discussed very, uh, in our early period.
+
+Sarah Terzic
+Yep. Uh, the harvest one. Yep.
+
+Mitesh Dabhi
+So I believe like all the data which you have put here is, uh, very static. Uh, so that's why you have to update it, uh, every time you got some new data.
+
+So what we can do here is like, uh, we can connect with your harvest whereby we will be able to get all the course data as well as the timeline data as you are planning all the tasks for the harvest, right?
+
+Umang Kalavadiya
+Yeah.
+
+Mitesh Dabhi
+So harvest will have, the important things for harvest is it will have our company, company billable, right?
+
+Sarah Terzic
+We need to add to it the cost rates for all the team members. right, Britt, we didn't do that yet.
+
+Okay.
+
+Mitesh Dabhi
+So what we can do here is like, Yeah, haven't that yet. We need Okay, we can do one thing, can use kind of an hybrid approach, whereby like the company data and all, we can store it in our database, whereby you can just go and you can update their hourly rate, their, like if it's a monthly rate, and for the revenue part also, we can have one database, whereby you can just upload, update the rate as a monthly recurring revenue or one-time project.
+
+and rest all the data, just like the timeline, work, task, and everything, which we can connect with Harvest, and you will have the live data based on these two things.
+
+Sarah Terzic
+Yeah, like once we get all of it updated or in there for existing clients, then it could just be like an option to say, okay, is this revenue extending month over month, and can we do it just in that, right?
+
+I have all the spreadsheets, I have all of our budget, all of our forecasts, we have a revenue hub, like I have the data inputs, but my goal would be
+
+Is there a way after the first initial upload to get everybody on there, is there a way that really the updates are being made in this system, right?
+
+My budget will always be separate. I'll obviously always be updating like a budget and a forecast, but is this independent of that where it's able to just pull in from us uploading new project data for the team so that they're aware of what they're working on when?
+
+Yes, the upload can be also done.
+
+Mitesh Dabhi
+Like if you want to keep it manually, that can also be done. But I'll suggest like if we connect directly with Harvest API, that will be a good option.
+
+Yeah, no, that I definitely want.
+
+Sarah Terzic
+What do you mean? You mean like that I'll pull in a new project when it's created? What do you mean?
+
+What manual work to remove? Yep.
+
+Mitesh Dabhi
+I mean, like, for example, if you want to keep all the revenue part and cost part as a manually, like whereby you can just enter the figure, every time you want to update the data, as of now, you are changing it into the source code.
+
+move step. But, go But it's can give it to you, editable option here also. So for example, if you go into the B2B form or anywhere, you can just update the revenue data for the next month.
+
+That can be the editable. Yeah. But other than that, I suggest like if you have the live dashboard based on the harvest, you'll be able to see on a live basis like which project is going on, when it is going to stop, when he can take up the new project and everything.
+
+Yep. Yep. So I think, Britt, we should look at harvest and see what we can put in.
+
+Sarah Terzic
+Like, can you put in monthly retainers and project fees and start- Yeah, so you can do all of that.
+
+Yeah. Okay. So you're saying just, we put that all in harvest and let that be the sink to here.
+
+Yep. Yep. So what we'll do, like we'll connect the data from the harvest and then after we'll calculate all the things here in the dashboard and we can define the rules.
+
+Mitesh Dabhi
+For example, if someone is going to end the project or whatever the project is assigned to them, has the end date within next
+
+Next 30 days, it will pop up here as a notification so that whom server is working on the top of that person can be sure that he will assign to the next project.
+
+Yep, yep, that makes sense.
+
+Sarah Terzic
+And then I think there's just something that needs to be coded in, like what I have found difficult on my dashboards is I keep the end date, what it was originally, and we flag it at risk.
+
+But then when I send it out to the team members, I have to like fill in the month saying they're still working on this project because there was an end date, but it was extended and it didn't close out.
+
+So even though I have a trigger saying it's not closed out, it wasn't automatically like stretching that person's time because I don't want to change the date.
+
+want to know when we were supposed to deliver the project and how late we were in that delivery, right?
+
+So that's just one thing to note here. Yep, so I think that will be taken care of once we will have...
+
+Mitesh Dabhi
+Harvest because like if in Harvest if you are not closing out that project uh I believe the end date will be stretching out and once you close out that project the end date will be the date when you close that project yeah I just want to make sure again that end date if we switch it in Harvest it's not like showing us good job you're on time because we moved an end date I wanted to be like no we're over yeah the end date is no longer what it was supposed to be okay okay then so we can define date also like uh we can store the initial date into our system so whenever someone is changing the end date we will have the uh like idea like what was the first end date then after um they have changed it to the one month uh after or two months after okay okay uh I believe we do have the harvest access so once again we will check it out I think initially Brittany has shared with us so we'll just look into it and uh we'll uh give some
+
+Look into all the data you have, and we'll come up with some kind of dummy dashboard with that data, and we'll show it to you.
+
+Sarah Terzic
+Okay, cool. Will you just tell us what we need to do for these two projects? Sorry? Not right now, but just when you email us, just flag whatever you need from our side for both the super memory and for this project, if you need any other assets from us.
