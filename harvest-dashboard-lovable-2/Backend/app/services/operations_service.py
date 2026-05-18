@@ -630,7 +630,8 @@ class OperationsService:
             overrides,
             include_inactive=True,
         )
-        team_payload = _build_team_rows(users, assignments, dept_maps, hour_lines, visible_ids)
+        entries = await self._fetch_entries(from_date, to_date)
+        team_payload = _build_team_rows(users, assignments, dept_maps, hour_lines, visible_ids, entries)
         project_rows_for_metrics = _build_project_rows(
             projects,
             client_name_by_id,
