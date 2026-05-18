@@ -13,14 +13,14 @@ const MAX_VISIBLE_PROJECT_CHIPS = 4;
 
 export function TeamOverview({ members, projectNameById = {} }: TeamOverviewProps) {
   return (
-    <div className="bg-card border rounded-lg overflow-hidden flex flex-col h-full max-h-[min(72vh,52rem)]">
+    <div className="bg-card border rounded-lg overflow-hidden flex flex-col h-full">
       <div className="p-3 border-b shrink-0">
         <h3 className="font-semibold text-sm">Team & Utilization</h3>
         <p className="text-[10px] text-muted-foreground mt-0.5">
           {members.length} {members.length === 1 ? "person" : "people"} · scroll to see all
         </p>
       </div>
-      <div className="divide-y overflow-y-auto overscroll-contain min-h-0">
+      <div className="divide-y overflow-y-auto overscroll-contain min-h-0 max-h-[calc(4*110px)]">
         {members.map((member) => (
           <MemberRow
             key={member.id}
