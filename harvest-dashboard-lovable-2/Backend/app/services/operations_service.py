@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from datetime import date
 
@@ -332,11 +333,20 @@ def _build_team_rows(
         internal_utilization = round((internal_hours / target) * 100, 2) if target else 0.0
         dept = primary_department_for_user(u.harvest_id)
         role_str = "Team Member"
-        if u.roles:
-            if isinstance(u.roles, list):
-                role_str = u.roles[0] if u.roles else "Team Member"
-            else:
-                role_str = str(u.roles).split(",")[0].strip()
+        roles_data = u.roles
+
+        # Handle string representation of JSON (e.g., "[]" or "["Marketing Team"]")
+        if isinstance(roles_data, str):
+            try:
+                roles_data = json.loads(roles_data)
+            except (json.JSONDecodeError, TypeError):
+                roles_data = []
+
+        # Extract first role from list
+        if isinstance(roles_data, list) and roles_data:
+            role_str = str(roles_data[0]).strip()
+        elif isinstance(roles_data, str) and roles_data.strip():
+            role_str = roles_data.strip()
 
         team_rows.append(
             {
