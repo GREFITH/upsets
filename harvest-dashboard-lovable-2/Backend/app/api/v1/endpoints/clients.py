@@ -24,6 +24,16 @@ class CreateProjectRequest(BaseModel):
     assignedTeam: list[str]
 
 
+class NewProjectConfigRequest(BaseModel):
+    clientName: str
+    code: str
+    department: str
+    monthly_fee: float
+    startDate: str
+    endDate: str
+    assignedTeam: list[str] = []
+
+
 @router.get("/clients")
 async def get_clients(db: AsyncSession = Depends(get_db)) -> dict:
     """
@@ -124,4 +134,67 @@ async def create_project(req: CreateProjectRequest, db: AsyncSession = Depends(g
         "ok": True,
         "message": "Project config saved. It will appear in dashboards after the next Harvest sync.",
     }
+
+
+@router.post("/projects/config")
+async def create_project_config(
+    request: NewProjectConfigRequest,
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """
+    Pre-creates department mapping and financial override
+    for a new project before it appears in Harvest sync.
+    Does NOT write to harvest_projects directly.
+    Harvest is the source of truth for project data.
+    """
+    # Save department mapping if project exists in harvest
+    proj = (await db.execute(
+        select(HarvestProject).where(
+            HarvestProject.code == request.code
+        )
+    )).scalar_one_or_none()
+
+    if proj:
+        # Project already synced from Harvest — map it
+        existing_map = (await db.execute(
+            select(ProjectDepartmentMap).where(
+                ProjectDepartmentMap.harvest_project_id == proj.harvest_id
+            )
+        )).scalar_one_or_none()
+
+        if existing_map:
+            existing_map.department = request.department
+        else:
+            db.add(ProjectDepartmentMap(
+                harvest_project_id=proj.harvest_id,
+                department=request.department
+            ))
+
+        # Save financial override
+        existing_override = (await db.execute(
+            select(ProjectFinancialOverride).where(
+                ProjectFinancialOverride.harvest_project_id == proj.harvest_id
+            )
+        )).scalar_one_or_none()
+
+        if existing_override:
+            existing_override.monthly_fee_override = request.monthly_fee
+        else:
+            db.add(ProjectFinancialOverride(
+                harvest_project_id=proj.harvest_id,
+                monthly_fee_override=request.monthly_fee
+            ))
+
+        await db.commit()
+        return {
+            "ok": True,
+            "message": "Project mapped successfully. Dashboard will update immediately."
+        }
+    else:
+        # Project not yet in Harvest sync
+        await db.commit()
+        return {
+            "ok": False,
+            "message": "Project code not found in Harvest yet. Please create the project in Harvest first, run a sync, then map it here."
+        }
 

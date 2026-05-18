@@ -258,8 +258,8 @@ def _build_project_rows(
                 "departmentName": dept_label,
                 "isActive": is_active,
                 "status": status,
-                "deadline": p.ends_on.isoformat() if p.ends_on else None,
-                "startsOn": p.starts_on.isoformat() if p.starts_on else None,
+                "startDate": p.starts_on.isoformat() if p.starts_on else None,
+                "endDate": p.ends_on.isoformat() if p.ends_on else None,
                 "originalEndDate": bl.original_ends_on.isoformat() if bl and bl.original_ends_on else None,
                 "daysLate": days_late,
                 "monthlyFee": round(monthly_fee, 2),
@@ -286,6 +286,7 @@ def _build_team_rows(
     dept_maps: list,
     entry_hour_lines: list[tuple[int, int, float]],
     visible_ids: set,
+    entries: list = None,
 ) -> list[dict]:
     dept_by_project = {m.harvest_project_id: m for m in dept_maps}
     _, user_projects, _, _ = _build_assignment_maps(assignments, entry_hour_lines, visible_ids)
@@ -302,17 +303,33 @@ def _build_team_rows(
         return "unassigned"
 
     member_hours: dict[int, float] = defaultdict(float)
+    member_billable_hours: dict[int, float] = defaultdict(float)
+    member_internal_hours: dict[int, float] = defaultdict(float)
+
     for project_id, user_id, th in entry_hour_lines:
         if project_id in visible_ids:
             member_hours[user_id] += th
+
+    # If entries are provided, calculate billable vs internal breakdown
+    if entries:
+        for entry in entries:
+            if entry.project_id in visible_ids and entry.user_id:
+                if entry.billable:
+                    member_billable_hours[entry.user_id] += float(entry.rounded_hours or 0)
+                else:
+                    member_internal_hours[entry.user_id] += float(entry.rounded_hours or 0)
 
     team_rows = []
     for u in users:
         if not u.is_active:
             continue
         hours = member_hours.get(u.harvest_id, 0.0)
+        billable_hours = member_billable_hours.get(u.harvest_id, 0.0)
+        internal_hours = member_internal_hours.get(u.harvest_id, 0.0)
         target = 160.0
         utilization = round((hours / target) * 100, 2) if target else 0.0
+        billable_utilization = round((billable_hours / target) * 100, 2) if target else 0.0
+        internal_utilization = round((internal_hours / target) * 100, 2) if target else 0.0
         dept = primary_department_for_user(u.harvest_id)
         team_rows.append(
             {
@@ -322,6 +339,8 @@ def _build_team_rows(
                 "department": dept,
                 "projects": list(dict.fromkeys(user_projects.get(u.harvest_id, []))),
                 "utilization": utilization,
+                "billableUtilization": billable_utilization,
+                "internalUtilization": internal_utilization,
                 "hoursWorked": round(hours, 2),
                 "targetHours": target,
                 "costRate": float(u.cost_rate) if u.cost_rate is not None else None,
@@ -519,7 +538,8 @@ class OperationsService:
         )
         _, visible_ids, _ = _build_visibility(projects, clients)
         _, hour_lines = _parse_project_user_agg_rows(agg_rows, visible_ids)
-        return _build_team_rows(users, assignments, dept_maps, hour_lines, visible_ids)
+        entries = await self._fetch_entries(from_date, to_date)
+        return _build_team_rows(users, assignments, dept_maps, hour_lines, visible_ids, entries)
 
     async def get_department_metrics(self, *, from_date: date | None = None, to_date: date | None = None) -> list[dict]:
         """Department KPI rows — reuses project + team builders on aggregated time."""
@@ -547,7 +567,8 @@ class OperationsService:
             hour_lines,
             overrides,
         )
-        team_rows = _build_team_rows(users, assignments, dept_maps, hour_lines, visible_ids)
+        entries = await self._fetch_entries(from_date, to_date)
+        team_rows = _build_team_rows(users, assignments, dept_maps, hour_lines, visible_ids, entries)
         override_by_project = {o.harvest_project_id: o for o in overrides}
         return _build_metric_rows(project_rows, team_rows, override_by_project)
 
@@ -773,7 +794,8 @@ class OperationsService:
             hour_lines,
             overrides,
         )
-        team_rows = _build_team_rows(users, assignments, dept_maps, hour_lines, visible_ids)
+        entries = await self._fetch_entries(None, None)
+        team_rows = _build_team_rows(users, assignments, dept_maps, hour_lines, visible_ids, entries)
         override_by_project = {o.harvest_project_id: o for o in overrides}
         metric_rows = _build_metric_rows(project_rows, team_rows, override_by_project)
 

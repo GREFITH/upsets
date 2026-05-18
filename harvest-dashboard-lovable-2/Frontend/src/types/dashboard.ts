@@ -58,6 +58,8 @@ export interface TeamMember {
   role: string;
   department: Department;
   utilization: number;
+  billableUtilization?: number;
+  internalUtilization?: number;
   clientLoad: number;
   assignedProjects: string[];
   avatar?: string;

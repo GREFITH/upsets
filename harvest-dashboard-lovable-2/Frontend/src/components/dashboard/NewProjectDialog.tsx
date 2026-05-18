@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Department, DEPARTMENTS, Project } from "@/types/dashboard";
 import { useOperationsData } from "@/hooks/useOperationsData";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -11,7 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Lock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api/client";
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -69,11 +71,13 @@ function generateCode(clientName: string, projects: Project[]): { code: string; 
 }
 
 export function NewProjectDialog({ open, onOpenChange, defaultDepartment }: NewProjectDialogProps) {
+  const queryClient = useQueryClient();
   const [clientName, setClientName] = useState("");
   const [department, setDepartment] = useState<Department | "">(defaultDepartment ?? "");
   const [monthlyFee, setMonthlyFee] = useState("");
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { data } = useOperationsData();
   const projects = data?.projects ?? [];
 
@@ -82,17 +86,57 @@ export function NewProjectDialog({ open, onOpenChange, defaultDepartment }: NewP
     [clientName, projects],
   );
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!clientName || !code || !department || !monthlyFee || !startDate || !endDate) {
-      toast.error("Please fill in all required fields");
+      toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
-    toast.success(`Project ${code} created`, {
-      description: `${clientName} added to ${DEPARTMENTS.find(d => d.id === department)?.name}. Fee of $${monthlyFee}/mo will flow into forecast.`,
-    });
-    onOpenChange(false);
-    setClientName(""); setMonthlyFee("");
-    setStartDate(undefined); setEndDate(undefined);
+
+    setIsSubmitting(true);
+    try {
+      const response = await apiClient.post<{ ok: boolean; message: string }>(
+        "/api/v1/projects/config",
+        {
+          clientName,
+          code,
+          department,
+          monthly_fee: parseFloat(monthlyFee),
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+          assignedTeam: [],
+        }
+      );
+
+      if (response.ok) {
+        toast({
+          title: "Project added",
+          description: response.message,
+        });
+        // Invalidate queries so dashboard refreshes
+        queryClient.invalidateQueries({ queryKey: ["clients"] });
+        queryClient.invalidateQueries({ queryKey: ["overview"] });
+        queryClient.invalidateQueries({ queryKey: ["department"] });
+        onOpenChange(false);
+        setClientName("");
+        setMonthlyFee("");
+        setStartDate(undefined);
+        setEndDate(undefined);
+      } else {
+        toast({
+          title: "Note",
+          description: response.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to save project",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -185,8 +229,8 @@ export function NewProjectDialog({ open, onOpenChange, defaultDepartment }: NewP
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit}>Create Project</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>{isSubmitting ? "Creating..." : "Create Project"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

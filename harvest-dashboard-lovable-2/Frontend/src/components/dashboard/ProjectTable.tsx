@@ -62,16 +62,24 @@ export function ProjectTable({ projects, teamMembers: _teamMembers, onEditDates,
                       <Badge variant="outline" className={cn("text-[10px] font-medium", status.className)}>
                         {status.label}
                       </Badge>
-                      {project.status === "extended" && project.originalEndDate && project.daysLate !== undefined && (
-                        <TooltipProvider>
+                      {project.status === "extended" && project.originalEndDate && (
+                        <TooltipProvider delayDuration={200}>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Badge variant="outline" className="text-[10px] font-medium text-destructive border-destructive/30">
-                                Late {project.daysLate}d
-                              </Badge>
+                              <span className="text-[10px] font-medium ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 cursor-default">
+                                Late {project.daysLate ??
+                                  Math.floor(
+                                    (new Date(project.endDate).getTime() -
+                                     new Date(project.originalEndDate).getTime()) /
+                                    (1000 * 60 * 60 * 24)
+                                  )}d
+                              </span>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              Original end date: {new Date(project.originalEndDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                            <TooltipContent side="top" className="text-xs">
+                              Original end date:{" "}
+                              {new Date(project.originalEndDate).toLocaleDateString(
+                                "en-US", { month: "long", day: "numeric", year: "numeric" }
+                              )}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>

@@ -103,13 +103,6 @@ export default function OverviewDashboard() {
   usePrefetchAllForecasts();
   const [newProjectOpen, setNewProjectOpen] = useState(false);
 
-  // Alert for projects ending in 30 days
-  const today = new Date();
-  const in30 = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const endingSoon = (allProjects ?? []).filter(
-    (p) => p.isActive && p.endDate && new Date(p.endDate) >= today && new Date(p.endDate) <= in30
-  );
-  const endingSoonText = endingSoon.map((p) => `${p.clientName} (${new Date(p.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })})`).join(", ");
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -129,15 +122,41 @@ export default function OverviewDashboard() {
         </div>
       )}
 
-      {endingSoon.length > 0 && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-300">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>
-            <span className="font-medium">{endingSoon.length} project{endingSoon.length !== 1 ? "s" : ""} ending within 30 days:</span>
-            {" "}{endingSoonText}
-          </span>
-        </div>
-      )}
+      {(() => {
+        const today = new Date();
+        const in30 = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const endingSoon = (allProjects ?? []).filter(p =>
+          p.isActive &&
+          p.status !== "completed" &&
+          p.status !== "pipeline" &&
+          new Date(p.endDate) >= today &&
+          new Date(p.endDate) <= in30
+        );
+        if (endingSoon.length === 0) return null;
+        return (
+          <div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-300">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              <span className="font-medium">
+                {endingSoon.length} project{endingSoon.length !== 1 ? "s" : ""} ending within 30 days:
+              </span>
+              {" "}
+              {endingSoon.map((p, i) => (
+                <span key={p.id}>
+                  {i > 0 && ", "}
+                  <span className="font-medium">{p.clientName}</span>
+                  {" "}
+                  <span className="opacity-75">
+                    ({new Date(p.endDate).toLocaleDateString(
+                      "en-US", { month: "short", day: "numeric" }
+                    )})
+                  </span>
+                </span>
+              ))}
+            </span>
+          </div>
+        );
+      })()}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Operations Overview</h1>
@@ -207,7 +226,7 @@ export default function OverviewDashboard() {
       </div>
 
       {isPending || isForecastPending ? (
-        <ChartSkeleton height={260} />
+        <ChartSkeleton height={420} />
       ) : (
         <ForecastChart data={combinedForecast} title="Company-Wide Revenue Forecast" />
       )}

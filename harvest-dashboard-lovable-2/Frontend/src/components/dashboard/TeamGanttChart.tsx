@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   format, parseISO, differenceInDays, addMonths,
-  isAfter, isBefore, startOfDay, eachMonthOfInterval, getMonth, getYear,
+  isAfter, isBefore, startOfDay, eachMonthOfInterval,
 } from "date-fns";
 import type { Project, TeamMember } from "@/types/dashboard";
 import { cn } from "@/lib/utils";
@@ -70,7 +70,7 @@ function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMem
       months.add(format(addMonths(now, i), "yyyy-MM"));
     }
     return Array.from(months).sort();
-  }, [projects, today]);
+  }, [today]);
 
   function getMonthCell(member: TeamMember, monthStr: string): { type: "project" | "gap" | "empty"; project?: Project; color?: { bg: string; text: string } } {
     const [year, month] = monthStr.split("-");
@@ -78,11 +78,12 @@ function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMem
     const monthEnd = addMonths(monthDate, 1);
 
     const memberProjs = projects.filter(
-      (p) =>
-        (p.assignedTeam ?? []).includes(member.id) &&
-        p.startDate && p.endDate &&
-        parseISO(p.startDate) < monthEnd &&
-        parseISO(p.endDate) > monthDate
+      (p) => {
+        if (!(p.assignedTeam ?? []).includes(member.id)) return false;
+        if (!p.startDate || !p.endDate) return false;
+        if (!(parseISO(p.startDate) < monthEnd && parseISO(p.endDate) > monthDate)) return false;
+        return true;
+      }
     );
 
     if (memberProjs.length > 0) {
@@ -107,11 +108,12 @@ function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMem
   }
 
   return (
-    <div className="p-5 overflow-x-auto">
-      <div className="inline-block border rounded-lg">
-        <table className="text-xs">
-          <thead>
-            <tr className="bg-muted/50 border-b">
+    <div className="p-5 flex flex-col h-[700px]">
+      <div className="border rounded-lg overflow-hidden flex flex-col flex-1">
+        <div className="overflow-x-auto overflow-y-auto">
+          <table className="text-xs border-collapse">
+            <thead className="sticky top-0 z-20 bg-muted/50">
+              <tr>
               <th className="p-2 text-left font-semibold border-r min-w-[120px]">Team Member</th>
               {monthsSet.map((monthStr) => (
                 <th key={monthStr} className="p-2 text-center font-semibold border-r min-w-[60px] whitespace-nowrap">
@@ -175,27 +177,72 @@ function AllMembersGridView({ team, projects, today, in30Days }: { team: TeamMem
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
-      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[10px] text-muted-foreground/60">
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded" style={{ background: BRAND.chartreuse }} />
-          <span>Active Project</span>
+      <div className="mt-4 space-y-3">
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-[10px] text-muted-foreground/60">
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded" style={{ background: BRAND.chartreuse }} />
+            <span>Active Project</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded" style={{ background: "#fbbf24" }} />
+            <span>Extended Project</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded" style={{ background: "#d1d5db" }} />
+            <span>Ended Project</span>
+          </div>
+          <div className="flex items-center gap-1.5 ">
+            <div
+              className="h-3 w-3 rounded"
+              style={{
+                background: "#d1f5e3",
+                backgroundImage:
+                  "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(16,185,129,0.2) 4px, rgba(16,185,129,0.2) 8px)",
+              }}
+            />
+            <span>Available (Gap)</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded" style={{ background: "#fbbf24" }} />
-          <span>Extended Project</span>
-        </div>
-        <div className="flex items-center gap-1.5 ">
-          <div
-            className="h-3 w-3 rounded"
-            style={{
-              background: "#d1f5e3",
-              backgroundImage:
-                "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(16,185,129,0.2) 4px, rgba(16,185,129,0.2) 8px)",
-            }}
-          />
-          <span>Available (Gap)</span>
+        <div className="text-[10px] text-muted-foreground/60 border-t pt-2">
+          <p className="font-medium mb-1.5">Project Brand Colors</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded" style={{ background: BRAND.chartreuse }} />
+              <span>Brand Chartreuse</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded" style={{ background: BRAND.blue }} />
+              <span>Brand Blue</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded" style={{ background: BRAND.blueMid }} />
+              <span>Brand Blue Mid</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded" style={{ background: "#ECE81A" }} />
+              <span>Bright Yellow</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded" style={{ background: BRAND.blueLight }} />
+              <span>Brand Blue Light</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded" style={{ background: BRAND.blueDark }} />
+              <span>Brand Blue Dark</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded" style={{ background: "#F5EC4D" }} />
+              <span>Light Yellow</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded" style={{ background: "#3a7a9c" }} />
+              <span>Teal Blue</span>
+            </div>
+          </div>
+          <p className="text-[9px] text-muted-foreground/50 mt-2 italic">Each project gets a unique color from the brand palette</p>
         </div>
       </div>
     </div>
@@ -234,8 +281,25 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
   const [selectedId, setSelectedId] = useState<string>("");
   const [comboOpen, setComboOpen]   = useState(false);
   const [viewMode, setViewMode] = useState<"individual" | "all-members">("individual");
+  const [showNonBillable, setShowNonBillable] = useState(false);
   const today = startOfDay(new Date());
   const in30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const isNonBillable = (p: Project) => {
+    if (p.isActive === false) return true;
+    const nameLower = (p.projectName ?? "").toLowerCase();
+    const clientLower = (p.clientName ?? "").toLowerCase();
+    if (nameLower.includes("non-billable")) return true;
+    if (clientLower.includes("non-billable")) return true;
+    if (nameLower.includes("upspring non")) return true;
+    if (nameLower.includes("award submission")) return true;
+    if (nameLower.includes("internal")) return true;
+    return false;
+  };
+
+  const filteredProjectsForDisplay = useMemo(() => {
+    return showNonBillable ? projects : projects.filter(p => !isNonBillable(p));
+  }, [projects, showNonBillable]);
 
   const sortedTeam = useMemo(
     () => [...team].sort((a, b) => a.name.localeCompare(b.name)),
@@ -272,11 +336,13 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
   // Projects for the selected member
   const memberProjects = useMemo(() => {
     if (!selectedMember) return [];
-    return projects
+    return filteredProjectsForDisplay
       .filter(
-        (p) =>
-          (p.assignedTeam ?? []).includes(selectedMember.id) &&
-          p.startDate && p.endDate && p.startDate !== p.endDate,
+        (p) => {
+          if (!(p.assignedTeam ?? []).includes(selectedMember.id)) return false;
+          if (!p.startDate || !p.endDate || p.startDate === p.endDate) return false;
+          return true;
+        },
       )
       .map((p) => {
         const start = parseISO(p.startDate);
@@ -291,7 +357,7 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
         };
       })
       .sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [selectedMember, projects, today, in30Days]);
+  }, [selectedMember, filteredProjectsForDisplay, today, in30Days]);
 
   const availableFrom = selectedMember
     ? (availabilityMap.get(selectedMember.id) ?? null)
@@ -345,14 +411,24 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
             </div>
 
             {/* ── Mode toggle ──────────────────────────────────────────────── */}
-            <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as "individual" | "all-members")} className="border rounded-md p-0.5 bg-background">
-              <ToggleGroupItem value="individual" className="text-xs h-8" aria-label="Individual view">
-                Individual
-              </ToggleGroupItem>
-              <ToggleGroupItem value="all-members" className="text-xs h-8" aria-label="All members view">
-                All Members
-              </ToggleGroupItem>
-            </ToggleGroup>
+            <div className="flex items-center gap-3">
+              <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as "individual" | "all-members")} className="border rounded-md p-0.5 bg-background">
+                <ToggleGroupItem value="individual" className="text-xs h-8" aria-label="Individual view">
+                  Individual
+                </ToggleGroupItem>
+                <ToggleGroupItem value="all-members" className="text-xs h-8" aria-label="All members view">
+                  All Members
+                </ToggleGroupItem>
+              </ToggleGroup>
+              <Button
+                variant={showNonBillable ? "default" : "outline"}
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => setShowNonBillable(!showNonBillable)}
+              >
+                {showNonBillable ? "Showing" : "Hide"} Non-Billable
+              </Button>
+            </div>
           </div>
 
           {viewMode === "individual" && (
@@ -436,7 +512,7 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
         {viewMode === "all-members" && (
           <AllMembersGridView
             team={sortedTeam}
-            projects={projects}
+            projects={filteredProjectsForDisplay}
             today={today}
             in30Days={in30Days}
           />
@@ -585,7 +661,7 @@ export function TeamGanttChart({ team, projects, isLoading = false }: Props) {
 
                   <TooltipProvider delayDuration={60}>
                     <div className="space-y-2">
-                      {memberProjects.map(({ project, start, end, color, isPast }) => {
+                      {memberProjects.map(({ project, start, end, color, isPast, isEndingSoon }) => {
                         const left  = pct(start);
                         const width = Math.max(1, pct(end) - left);
                         return (

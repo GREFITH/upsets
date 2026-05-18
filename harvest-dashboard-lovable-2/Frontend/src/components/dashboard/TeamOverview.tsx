@@ -13,7 +13,7 @@ const MAX_VISIBLE_PROJECT_CHIPS = 4;
 
 export function TeamOverview({ members, projectNameById = {} }: TeamOverviewProps) {
   return (
-    <div className="bg-card border rounded-lg overflow-hidden flex flex-col max-h-[min(72vh,52rem)]">
+    <div className="bg-card border rounded-lg overflow-hidden flex flex-col h-full max-h-[min(72vh,52rem)]">
       <div className="p-3 border-b shrink-0">
         <h3 className="font-semibold text-sm">Team & Utilization</h3>
         <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -89,7 +89,22 @@ function MemberRow({
             </p>
           </div>
         </div>
-        <Progress value={Math.min(member.utilization, 100)} className="h-1.5" />
+        {member.billableUtilization !== undefined && member.internalUtilization !== undefined ? (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="text-xs font-medium text-green-600 min-w-fit">Billable</div>
+              <Progress value={Math.min(member.billableUtilization, 100)} className="h-1.5 bg-green-100 flex-1" />
+              <div className="text-xs text-muted-foreground">{Math.round(member.billableUtilization)}%</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-xs font-medium text-gray-600 min-w-fit">Internal</div>
+              <Progress value={Math.min(member.internalUtilization, 100)} className="h-1.5 bg-gray-100 flex-1" />
+              <div className="text-xs text-muted-foreground">{Math.round(member.internalUtilization)}%</div>
+            </div>
+          </div>
+        ) : (
+          <Progress value={Math.min(member.utilization, 100)} className="h-1.5" />
+        )}
         {projectNames.length > 0 && (
           <div className="mt-2 space-y-1">
             <div className="flex flex-wrap gap-1">

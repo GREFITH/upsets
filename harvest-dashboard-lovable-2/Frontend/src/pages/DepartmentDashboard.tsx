@@ -49,13 +49,6 @@ export default function DepartmentDashboard() {
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", minimumFractionDigits: 0 }).format(n);
 
-  // Alert for projects ending in 30 days
-  const today = new Date();
-  const in30 = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const endingSoon = (projects ?? []).filter(
-    (p) => p.isActive && p.endDate && new Date(p.endDate) >= today && new Date(p.endDate) <= in30
-  );
-  const endingSoonText = endingSoon.map((p) => `${p.clientName} (${new Date(p.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })})`).join(", ");
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -76,15 +69,41 @@ export default function DepartmentDashboard() {
         </div>
       )}
 
-      {endingSoon.length > 0 && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-300">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>
-            <span className="font-medium">{endingSoon.length} project{endingSoon.length !== 1 ? "s" : ""} ending within 30 days:</span>
-            {" "}{endingSoonText}
-          </span>
-        </div>
-      )}
+      {(() => {
+        const today = new Date();
+        const in30 = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const endingSoon = projects.filter(p =>
+          p.isActive &&
+          p.status !== "completed" &&
+          p.status !== "pipeline" &&
+          new Date(p.endDate) >= today &&
+          new Date(p.endDate) <= in30
+        );
+        if (endingSoon.length === 0) return null;
+        return (
+          <div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-300">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              <span className="font-medium">
+                {endingSoon.length} project{endingSoon.length !== 1 ? "s" : ""} ending within 30 days:
+              </span>
+              {" "}
+              {endingSoon.map((p, i) => (
+                <span key={p.id}>
+                  {i > 0 && ", "}
+                  <span className="font-medium">{p.clientName}</span>
+                  {" "}
+                  <span className="opacity-75">
+                    ({new Date(p.endDate).toLocaleDateString(
+                      "en-US", { month: "short", day: "numeric" }
+                    )})
+                  </span>
+                </span>
+              ))}
+            </span>
+          </div>
+        );
+      })()}
 
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -131,14 +150,25 @@ export default function DepartmentDashboard() {
               formula={"Net Revenue − Internal Cost\nInternal Cost = Σ (hours × user cost rate) per project"}
               dataSource={DEPARTMENT_KPI_DATA_SOURCES["Loaded Net"]}
             />
-            <KPICard
-              title="Active Projects"
-              value={String(metrics.activeProjects)}
-              icon={Briefcase}
-              subtitle={metrics.pipelineValue > 0 ? `${formatCurrency(metrics.pipelineValue)} pipeline` : undefined}
-              formula={"Count of projects with status 'active' or 'extended'\n(excludes inactive / archived projects)"}
-              dataSource={DEPARTMENT_KPI_DATA_SOURCES["Active Projects"]}
-            />
+            {(() => {
+              const uniqueActiveClients = new Set(
+                projects
+                  .filter(p => p.isActive &&
+                    p.status !== "completed" &&
+                    p.status !== "pipeline")
+                  .map(p => p.clientName.split(" - ")[0].trim())
+              ).size;
+              return (
+                <KPICard
+                  title="Clients"
+                  value={String(uniqueActiveClients)}
+                  icon={Briefcase}
+                  subtitle={`${metrics.activeProjects} project codes`}
+                  formula={"Unique clients with active projects\n(one client may have multiple project codes)"}
+                  dataSource={DEPARTMENT_KPI_DATA_SOURCES["Active Projects"]}
+                />
+              );
+            })()}
             <KPICard
               title="Team"
               value={`${metrics.teamSize} members`}
@@ -152,27 +182,29 @@ export default function DepartmentDashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
+        <div className="xl:col-span-2 flex flex-col h-full">
           {isPending || isForecastPending ? (
-            <ChartSkeleton height={260} />
+            <ChartSkeleton height={420} />
           ) : (
             <ForecastChart data={forecast} title={`${department.name} — Revenue Forecast`} />
           )}
         </div>
-        <div className="xl:col-span-1">
+        <div className="xl:col-span-1 flex flex-col h-full">
           {isPending ? (
-            <div className="bg-card border rounded-lg p-5 space-y-3">
-              <Skeleton className="h-4 w-28 mb-2" />
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between py-1">
-                  <div className="space-y-1.5">
-                    <Skeleton className="h-3.5 w-32" />
-                    <Skeleton className="h-3 w-20" />
+            <div className="bg-card border rounded-lg p-5 space-y-3 h-full flex flex-col justify-between">
+              <div>
+                <Skeleton className="h-4 w-28 mb-4" />
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-3.5 w-32" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-5 w-12 rounded-full" />
                   </div>
-                  <Skeleton className="h-5 w-12 rounded-full" />
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           ) : (
             <TeamOverview
