@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Info, AlertTriangle } from "lucide-react";
+import { Info, AlertTriangle, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DEPARTMENTS } from "@/types/dashboard";
 import { KPICard } from "@/components/dashboard/KPICard";
@@ -102,23 +102,37 @@ export default function OverviewDashboard() {
   const { projects: allProjects, teamMembers: allTeamMembers, isPending: isGanttPending } = useAllTeamAndProjects();
   usePrefetchAllForecasts();
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+
+  const dismissAlert = (alertId: string) => {
+    setDismissedAlerts(prev => new Set(prev).add(alertId));
+  };
 
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      {unmappedCount > 0 && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>
-            <span className="font-medium">{unmappedCount} active project{unmappedCount !== 1 ? "s" : ""} with tracked hours have no department assigned.</span>
-            {" "}Their revenue is hidden from all department charts.{" "}
-            <button
-              onClick={() => navigate("/dashboard/settings")}
-              className="underline underline-offset-2 hover:no-underline font-medium"
-            >
-              Map them in Settings →
-            </button>
-          </span>
+      {unmappedCount > 0 && !dismissedAlerts.has("unmapped") && (
+        <div className="flex items-start justify-between gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              <span className="font-medium">{unmappedCount} active project{unmappedCount !== 1 ? "s" : ""} with tracked hours have no department assigned.</span>
+              {" "}Their revenue is hidden from all department charts.{" "}
+              <button
+                onClick={() => navigate("/dashboard/settings")}
+                className="underline underline-offset-2 hover:no-underline font-medium"
+              >
+                Map them in Settings →
+              </button>
+            </span>
+          </div>
+          <button
+            onClick={() => dismissAlert("unmapped")}
+            className="shrink-0 p-0.5 hover:bg-amber-200/50 dark:hover:bg-amber-800/30 rounded transition-colors"
+            aria-label="Dismiss alert"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
@@ -132,28 +146,37 @@ export default function OverviewDashboard() {
           new Date(p.endDate) >= today &&
           new Date(p.endDate) <= in30
         );
-        if (endingSoon.length === 0) return null;
+        if (endingSoon.length === 0 || dismissedAlerts.has("ending-soon")) return null;
         return (
-          <div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-300">
-            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>
-              <span className="font-medium">
-                {endingSoon.length} project{endingSoon.length !== 1 ? "s" : ""} ending within 30 days:
-              </span>
-              {" "}
-              {endingSoon.map((p, i) => (
-                <span key={p.id}>
-                  {i > 0 && ", "}
-                  <span className="font-medium">{p.clientName}</span>
-                  {" "}
-                  <span className="opacity-75">
-                    ({new Date(p.endDate).toLocaleDateString(
-                      "en-US", { month: "short", day: "numeric" }
-                    )})
-                  </span>
+          <div className="flex items-start justify-between gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-300">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>
+                <span className="font-medium">
+                  {endingSoon.length} project{endingSoon.length !== 1 ? "s" : ""} ending within 30 days:
                 </span>
-              ))}
-            </span>
+                {" "}
+                {endingSoon.map((p, i) => (
+                  <span key={p.id}>
+                    {i > 0 && ", "}
+                    <span className="font-medium">{p.clientName}</span>
+                    {" "}
+                    <span className="opacity-75">
+                      ({new Date(p.endDate).toLocaleDateString(
+                        "en-US", { month: "short", day: "numeric" }
+                      )})
+                    </span>
+                  </span>
+                ))}
+              </span>
+            </div>
+            <button
+              onClick={() => dismissAlert("ending-soon")}
+              className="shrink-0 p-0.5 hover:bg-blue-200/50 dark:hover:bg-blue-800/30 rounded transition-colors"
+              aria-label="Dismiss alert"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         );
       })()}
